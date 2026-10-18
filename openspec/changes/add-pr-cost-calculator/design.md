@@ -29,7 +29,7 @@ See `proposal.md` for why. These facts shape the approach:
 
 - Billing reconciliation. The figure is an API-equivalent estimate, and plans, discounts and included minutes are not modelled.
 - Agents other than Claude Code in this change. The ledger format is documented so they can be added later.
-- The cost of AI code review on the pull request, such as the tokens a review app or a review job in CI spends. A later change can add it once it is known where that usage can be read.
+- The cost of AI code review on the pull request, such as the tokens a review app or a review job in CI spends. The owner decided on 2026-10-18 to leave it to a later change, which can add it once it is known where that usage can be read.
 - Live cost while a pull request is open. The report runs at merge.
 - GitHub Enterprise Server, which lacks the `job` context values that decision 7 relies on.
 
@@ -79,13 +79,15 @@ The type comes from the first tool call in a message: edits and writes are code 
 
 ### 6. The repository turns the tool on, and each person turns on their own capture
 
+*Decided by the owner, 2026-10-18.* In a public repository, publishing someone's usage needs their own consent.
+
 `.pr-cost.json` at the repository root holds `enabled`. Capture reads it in the working tree. The report reads it from the default branch before and after the merge (decision 7), so the pull request being reported cannot turn its own report off. A file is visible in review and versioned with the code.
 
 Capture also needs the consent of the person whose session it records: `pr-cost.capture` set to `true` in their global git configuration. The repository decides whether the tool is used there. Only the person decides whether their session's usage is published, so an outside contributor's usage is not committed merely because the repository's owner turned the tool on.
 
 The script reads that setting from the global configuration files in the home directory, `~/.gitconfig` and git's file in the XDG configuration folder, and ignores the variables that point git at other files or add settings, because a repository's settings can set those for everyone who works in it, though not `HOME` or the `XDG_*` variables. One opt-in covers every repository that uses the tool, so `pr-cost.capture` set to `false` in a repository's own git configuration turns capture off there. Set to `true` there, it opts no one in.
 
-*Not chosen:* the repository's setting alone, which would publish the usage of everyone who works in the repository, including people who never agreed to it. This choice is put to the owner (see Open Questions).
+*Not chosen:* the repository's setting alone, which would publish the usage of everyone who works in the repository, including people who never agreed to it.
 
 ### 7. The report runs on the push that a merge makes to the default branch
 
@@ -141,5 +143,4 @@ The testing tools are added to `requirements-dev.txt` with the first code, at ve
 
 ## Open Questions
 
-- Whether capture needs each person's opt-in on top of the repository's setting. The specs are written for the opt-in (decision 6). If the owner chooses the repository's setting alone, its requirement and scenarios are removed before the proposal is approved.
 - Whether to show a reasoning-token count separately. It is part of output tokens and priced the same, so this changes only the report's layout.
