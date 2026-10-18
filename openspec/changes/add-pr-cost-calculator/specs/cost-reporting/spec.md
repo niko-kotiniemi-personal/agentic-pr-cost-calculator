@@ -30,7 +30,7 @@ A repository SHALL turn the calculator on by adding its configuration file with 
 
 ### Requirement: A merged pull request gets one report comment
 
-When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost; the price table's date; the tool's version; the number of ledger entries it counted, and the number of entries and files it did not count, for each reason this capability gives; the number of calls that capture refused; and the number of calls that capture read without a stop reason, whose usage may be low. It SHALL state that the figure is an API-equivalent estimate, not a bill, and that it counts the usage that the pull request's commits carry and the CI runs on those commits. When the report runs again, it SHALL update its earlier comment, and SHALL update only a comment that its own identity wrote.
+When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost; the price table's date; the tool's version; the number of ledger entries it counted, and the number of entries and files it did not count, for each reason this capability gives; the number of calls that capture refused; and the number of calls that capture read without a stop reason, and, when there are any, that the token cost is a lower bound. It SHALL state that the figure is an API-equivalent estimate, not a bill, and that it counts the usage that the pull request's commits carry and the CI runs on those commits. When the report runs again, it SHALL update its earlier comment, and SHALL update only a comment that its own identity wrote.
 
 #### Scenario: The comment states the totals
 
@@ -50,7 +50,7 @@ When a pull request merges with the tool on, the report SHALL post one comment g
 #### Scenario: Calls read without a stop reason are counted in the comment
 
 - **WHEN** the ledger files that a pull request adds count calls that capture read without a stop reason
-- **THEN** the comment gives their number, and says that their usage may be low
+- **THEN** the comment gives their number, and says that the token cost is a lower bound
 
 #### Scenario: A pull request without a ledger says so
 
@@ -69,12 +69,17 @@ When a pull request merges with the tool on, the report SHALL post one comment g
 
 ### Requirement: The comment shows only what the report computed
 
-The comment SHALL hold only numbers, the report's own fixed text, and model, attribute and runner names that match the name pattern, shown as code. It SHALL NOT quote ledger lines, file names, branch names, job names or any other text from the pull request or from the jobs API.
+The comment SHALL hold only numbers, the report's own fixed text, and model, attribute and runner names that the price table lists, shown as code. It SHALL NOT quote ledger lines, file names, branch names, job names, runner labels the price table does not list, or any other text from the pull request or from the jobs API. A ledger line that names a model or an attribute value that the price table does not list, other than `unknown`, SHALL be refused.
 
 #### Scenario: A name with markup is not shown as written
 
 - **WHEN** a ledger line names a model with a link, an image or an @-mention in it
 - **THEN** the line is refused, and the comment contains none of that text
+
+#### Scenario: A runner label with markup is not shown
+
+- **WHEN** a job's runner labels, as the jobs API gives them, hold a link, an image or an @-mention
+- **THEN** the comment contains none of that text
 
 #### Scenario: Refused ledger lines are counted, not shown
 
@@ -131,7 +136,7 @@ The report SHALL read ledger files only as blobs from git, never through the wor
 
 ### Requirement: The report runs only trusted code, with the least it needs
 
-The report SHALL run only for a push that a merge makes to the default branch, and SHALL refuse every other event, including when the workflow that calls it was triggered by something else. A push that merges no pull request SHALL get no comment. A push that merges more than one pull request, as a merge queue can, SHALL get no comment either, and the report SHALL say so in its job summary, because it cannot tell which ledger files and runs belong to which. The report SHALL run only the tool's own code, from the commit at which the calling workflow pins the tool, and SHALL read the pull request's files only as data, never running, importing or installing anything from them. It SHALL use the workflow's own token, with no permissions beyond reading the repository and its Actions data and writing pull request comments, and SHALL never write the token to its output.
+The report SHALL run only for a push that a merge makes to the default branch, and SHALL refuse every other event, including when the workflow that calls it was triggered by something else. It SHALL comment only when every commit that the push adds to the default branch's first-parent history belongs to one pull request. A push that merges no pull request SHALL get no comment. A push that merges more than one pull request, as a merge queue can, or that adds commits of no pull request beside a merge, SHALL get no comment either, and the report SHALL say so in its job summary, because it cannot tell which ledger files and runs belong to which. The report SHALL run only the tool's own code, from the commit at which the calling workflow pins the tool, and SHALL read the pull request's files only as data, never running, importing or installing anything from them. It SHALL use the workflow's own token, with no permissions beyond reading the repository and its Actions data and writing pull request comments, and SHALL never write the token to its output.
 
 #### Scenario: No secret is configured
 
@@ -157,6 +162,11 @@ The report SHALL run only for a push that a merge makes to the default branch, a
 
 - **WHEN** one push to the default branch merges two pull requests
 - **THEN** no comment is posted, and the job summary says that the push merged more than one pull request
+
+#### Scenario: A push that adds other commits beside a merge gets no comment
+
+- **WHEN** one push to the default branch adds a pull request's merge and a commit that belongs to no pull request
+- **THEN** no comment is posted, and the job summary says that the push holds commits of no pull request
 
 #### Scenario: Nothing from the pull request is run
 

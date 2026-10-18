@@ -6,7 +6,7 @@ Record what an agent session spends on model calls in this repository, as it wor
 
 ### Requirement: Capture runs only where the tool is on and the person has opted in
 
-The capture step SHALL record nothing unless the repository's configuration turns the tool on and the person running the session has turned capture on for themselves, in their global git configuration, which is not part of the repository. The step SHALL read that setting only from the global configuration files in the person's home directory, ignoring any environment variable that points git at other configuration files or adds settings, and SHALL record nothing in a repository whose own git configuration turns capture off.
+The capture step SHALL record nothing unless the repository's configuration turns the tool on and the person running the session has turned capture on for themselves, in their global git configuration, which is not part of the repository. The step SHALL read that setting only from the global configuration files in the person's home directory themselves, not from files they include, ignoring any environment variable that points git at other configuration files or adds settings, and SHALL record nothing in a repository whose own git configuration turns capture off.
 
 #### Scenario: No configuration file means no capture
 
@@ -25,7 +25,12 @@ The capture step SHALL record nothing unless the repository's configuration turn
 
 #### Scenario: The environment cannot opt a person in
 
-- **WHEN** the session's environment points git's global configuration at a file that turns capture on, and the person's own global configuration does not turn it on
+- **WHEN** the session's environment points git's global configuration at a file that turns capture on, or adds that setting through `GIT_CONFIG_COUNT` or `GIT_CONFIG_PARAMETERS`, and the person's own global configuration does not turn it on
+- **THEN** nothing is recorded
+
+#### Scenario: A setting in an included file does not opt a person in
+
+- **WHEN** the person's global configuration includes another file, and only that file turns capture on
 - **THEN** nothing is recorded
 
 #### Scenario: A person can turn capture off in one repository
@@ -35,7 +40,7 @@ The capture step SHALL record nothing unless the repository's configuration turn
 
 ### Requirement: Usage is recorded per model call
 
-The capture step SHALL record each model call once. Each record SHALL hold the call's UTC day, its model, a SHA-256 hash of its message id, whether the main agent or a subagent made it, its input tokens, output tokens, cache-write tokens split by cache lifetime where the source gives it, and cache-read tokens, and, where the source gives them, the attributes that change its price: service tier, speed, inference region and server-side tool requests. A call SHALL be identified by its message id, so that a call the transcript writes over several lines, or that appears in more than one transcript, is recorded once. A call's usage SHALL be read from its lines that give a stop reason, because its earlier lines can give partial usage. A call none of whose lines gives a stop reason SHALL be read from its last line once the call is over: when a later call follows it in the same transcript, or when the agent that made it has stopped. The ledger SHALL count the calls read that way, because their usage may be partial. A call that is not over yet SHALL be left for a later run. A subagent's calls SHALL be read from the subagent's own transcript.
+The capture step SHALL record each model call once. Each record SHALL hold the call's UTC day, its model, a SHA-256 hash of its message id, whether the main agent or a subagent made it, its input tokens, output tokens, cache-write tokens split by cache lifetime where the source gives it, and cache-read tokens, and, where the source gives them, the attributes that change its price: service tier, speed, inference region and server-side tool requests. A call SHALL be identified by its message id, so that a call the transcript writes over several lines, or that appears in more than one transcript, is recorded once. A call's usage SHALL be read from its lines that give a stop reason, because its earlier lines can give partial usage. A call none of whose lines gives a stop reason SHALL be read from its last line once the call is over: when a later call follows it in the same transcript, or when the agent that made it has stopped. The ledger SHALL count the calls read that way, because such lines give the usage of the call's start, with fewer output tokens and server-side tool requests than the call made. A call that is not over yet SHALL be left for a later run. A subagent's calls SHALL be read from the subagent's own transcript. To learn which calls the branch's ledger files already hold, the step SHALL read those files only as blobs from git, never through the working tree, skipping any path in the ledger folder that is not a regular file, and SHALL learn each file's size before reading it, skipping any file larger than the size bound that the ledger format documents.
 
 #### Scenario: A turn's calls are recorded once
 
@@ -56,6 +61,16 @@ The capture step SHALL record each model call once. Each record SHALL hold the c
 
 - **WHEN** a session is resumed in a fresh clone of its branch, and the ledger files on that branch already hold some of its calls
 - **THEN** none of those calls is recorded again
+
+#### Scenario: Capture reads no ledger file through a link
+
+- **WHEN** the branch holds a symbolic link in the ledger folder
+- **THEN** capture reads nothing through it, and still records the session's calls
+
+#### Scenario: Capture does not read an oversized ledger file
+
+- **WHEN** the branch holds a ledger file larger than the size bound
+- **THEN** capture does not read that file, and still records the session's calls
 
 #### Scenario: A call written over several lines is recorded once
 
@@ -104,7 +119,7 @@ The capture step SHALL record each model call once. Each record SHALL hold the c
 
 ### Requirement: Only calls made from this repository are recorded
 
-The capture step SHALL record only the calls whose transcript line gives a working directory in this repository: a directory whose git common directory is this repository's, which includes this repository's worktrees and excludes another repository nested inside its folder. Calls whose line gives any other working directory, including another repository that the same session worked in, or a folder that contains this repository, SHALL NOT be recorded here.
+This repository SHALL be the one that holds the project directory that Claude Code gives the hook, whatever directory the hook runs in, and the registered command SHALL name the capture step's file through that project directory. The capture step SHALL record only the calls whose transcript line gives a working directory in this repository: a directory whose git common directory is this repository's, which includes this repository's worktrees and excludes another repository nested inside its folder. Calls whose line gives any other working directory, including another repository that the same session worked in, or a folder that contains this repository, SHALL NOT be recorded here.
 
 #### Scenario: Calls made from outside this repository are not recorded
 
@@ -120,6 +135,11 @@ The capture step SHALL record only the calls whose transcript line gives a worki
 
 - **WHEN** a session made calls while its working directory was in a worktree of this repository
 - **THEN** those calls are recorded, and only a commit made in that worktree carries them
+
+#### Scenario: A run from another directory works on this repository
+
+- **WHEN** the capture step runs while Claude's current directory is in another repository
+- **THEN** it records and stages only in this repository, and only the calls made from this repository
 
 ### Requirement: The ledger holds counts, never content
 
@@ -185,7 +205,7 @@ Each entry SHALL carry one activity type derived from the tools the model call i
 
 ### Requirement: Usage reaches the pull request with the agent's commits
 
-Capture SHALL run when Claude finishes responding, when a subagent finishes, when a turn ends in an API error, and before and after each of the agent's Bash commands that runs `git commit` in this repository. A command runs `git commit` when one of the commands it is made of is `git`, with or without git's own options, followed by the `commit` subcommand, and is not a dry run; a command that only names it, such as in a quoted string, does not. Before such a commit, the step SHALL stage, as one new ledger file, the calls recorded in that worktree, while the branch now checked out there was checked out, that no ledger file holds yet. It SHALL add that file even when the repository's ignore rules match it, and SHALL stage nothing when the commit would otherwise commit nothing, or when it names the paths to commit. When the command ends, whether it succeeded or failed, the run for that command SHALL take the file back, from the index and the working tree, if the commit did not take it, and keep its calls for a later commit. At every other time, the step SHALL keep what it records inside the repository's common git directory, and SHALL NOT change the working tree or the index. Calls recorded while no branch was checked out SHALL go only to a commit made while no branch is checked out, in the same worktree.
+Capture SHALL run when Claude finishes responding, when a subagent finishes, when a turn ends in an API error, and before and after each of the agent's Bash commands that runs git. Every run SHALL record the calls that the transcript holds as over, so that a call that is over before a Bash command runs git is recorded with the branch it was made on, before that command can change the branch. A command runs `git commit` when one of the commands it is made of is `git`, with or without git's own options, followed by the `commit` subcommand, and is not a dry run; a command that only names it, such as in a quoted string, does not. Before a command that runs `git commit` in this repository in the foreground, in which nothing comes before that commit but changes of directory and the git commands `add`, `rm`, `mv`, `status`, `diff`, `log` and `show`, the step SHALL stage, as one new ledger file, the calls recorded in that worktree, while the branch now checked out there was checked out, that no ledger file holds yet. It SHALL add that file even when the repository's ignore rules match it. It SHALL stage nothing for any other command that runs `git commit`, because it cannot tell then which branch the commit lands on or when it runs; for a commit that names the paths to commit; and for a commit that would otherwise commit nothing when nothing before it in the command stages files, so that it fails, or makes the empty commit asked for, as it would without the tool. When the command's result returns, whether it succeeded or failed, the run for that command SHALL take the file back, from the index and the working tree, if no commit took it, and keep its calls for a later commit. When a command ends without that run, because it was refused, blocked by another hook or cancelled, the step's next run that finds the command over, by its result in the transcript or by its agent having stopped, SHALL take the file back the same way. A take-back SHALL NOT remove a file that a commit holds, and SHALL leave the file for a later run while another git command holds the index. At every other time, the step SHALL keep what it records inside the repository's common git directory, and SHALL NOT change the working tree or the index. Calls recorded while no branch was checked out SHALL go only to a commit made while no branch is checked out, in the same worktree.
 
 #### Scenario: A one-turn session's commit carries its calls
 
@@ -207,6 +227,11 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 - **WHEN** calls were recorded while one branch was checked out, and the agent then commits on another branch, or in another worktree
 - **THEN** that commit carries none of those calls
 
+#### Scenario: A call made before a checkout stays with its branch
+
+- **WHEN** the agent makes calls with one branch checked out, then runs `git checkout` to another branch and commits there, in the same turn
+- **THEN** the commit on the other branch carries none of the calls that the transcript held as over before the checkout ran
+
 #### Scenario: Calls made with no branch checked out wait for a commit made the same way
 
 - **WHEN** calls were recorded while no branch was checked out, and the agent then checks out a branch and commits
@@ -217,10 +242,40 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 - **WHEN** the step has staged a ledger file for a `git commit` that then fails
 - **THEN** once that command has ended, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch carries its calls
 
+#### Scenario: A refused commit leaves nothing staged
+
+- **WHEN** the step has staged a ledger file for a `git commit` that is then refused at a permission prompt or by a permission rule, blocked by another hook, or cancelled, and the transcript then holds that command's result
+- **THEN** after the step's next run, the ledger file is neither staged nor in the working tree, and a later commit on that branch carries its calls
+
+#### Scenario: A take-back leaves a committed file in place
+
+- **WHEN** a commit takes the ledger file after its command's result has returned, as a commit that Claude Code moved to the background at its timeout can
+- **THEN** the file stays in that commit, and the step does not remove it from the index
+
+#### Scenario: A commit that stages its own files carries a ledger file
+
+- **WHEN** the agent runs `git add f && git commit -m x`, with nothing staged before
+- **THEN** that commit holds `f` and a ledger file
+
+#### Scenario: A commit after another command takes no ledger file
+
+- **WHEN** the agent runs `npm test && git commit -am x`, or `git checkout other && git commit -m x`
+- **THEN** no ledger file is staged, and the calls wait for a later commit
+
+#### Scenario: A commit in the background takes no ledger file
+
+- **WHEN** the agent runs `git commit` in the background
+- **THEN** no ledger file is staged, and the calls wait for a later commit
+
 #### Scenario: A commit with nothing to commit stays empty
 
-- **WHEN** the agent runs `git commit` with nothing staged
+- **WHEN** the agent runs `git commit -m x` alone, with nothing staged
 - **THEN** no ledger file is staged, and the command fails as it would have without the tool
+
+#### Scenario: An empty commit asked for stays empty
+
+- **WHEN** the agent runs `git commit --allow-empty -m x` alone, with nothing staged
+- **THEN** no ledger file is staged, and the commit it makes is empty
 
 #### Scenario: A commit of named paths takes no ledger file
 
@@ -282,12 +337,12 @@ Two capture steps that run at the same time, such as a session's and a subagent'
 
 ### Requirement: The capture step is one self-contained file
 
-The capture step SHALL be one Python file that imports nothing but Python's standard library, so that it runs in Python's isolated mode with no file beside it, and an adopter can copy it into their repository whole.
+The capture step SHALL be one Python file that imports nothing but Python's standard library, so that it runs in Python's isolated mode, which imports nothing from the file's own folder, and an adopter can copy it into their repository whole.
 
 #### Scenario: The capture step runs alone in isolated mode
 
-- **WHEN** the capture step's file is copied alone into an empty folder and run with `python3 -I`
-- **THEN** it runs, and imports nothing from that folder
+- **WHEN** the capture step's file is copied into a folder that holds nothing else but a planted `json.py`, and run with `python3 -I`
+- **THEN** it runs, and the planted module is not imported
 
 ### Requirement: Capture never breaks or steers the session
 
