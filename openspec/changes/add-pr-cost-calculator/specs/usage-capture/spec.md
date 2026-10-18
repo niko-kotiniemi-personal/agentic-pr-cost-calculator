@@ -6,7 +6,7 @@ Record what an agent session spends on model calls in this repository, as it wor
 
 ### Requirement: Capture runs only where the tool is on and the person has opted in
 
-The capture step SHALL record nothing unless the repository's configuration turns the tool on and the person running the session has turned capture on for themselves, in their global git configuration, which is not part of the repository. The step SHALL read that setting only from the person's global configuration files themselves, `~/.gitconfig` and git's configuration file in their XDG configuration folder, not from files they include, ignoring any environment variable that points git at other configuration files or adds settings. Where both files set it, `~/.gitconfig`, which git reads after the other, SHALL decide. The step SHALL record nothing in a repository whose own git configuration turns capture off.
+The capture step SHALL record nothing unless the repository's configuration turns the tool on and the person running the session has turned capture on for themselves, in their global git configuration, which is not part of the repository. The step SHALL read that setting only from the person's global configuration files themselves, `~/.gitconfig` and git's configuration file in their XDG configuration folder, which is `$XDG_CONFIG_HOME/git/config` when that variable holds an absolute path and `~/.config/git/config` otherwise, not from files they include, ignoring any environment variable that points git at other configuration files or adds settings. Where both files set it, `~/.gitconfig`, which git reads after the other, SHALL decide. The step SHALL record nothing in a repository whose own git configuration turns capture off.
 
 #### Scenario: No configuration file means no capture
 
@@ -35,12 +35,17 @@ The capture step SHALL record nothing unless the repository's configuration turn
 
 #### Scenario: The XDG configuration file can opt a person in
 
-- **WHEN** the repository turns the tool on, the person's `~/.gitconfig` does not set capture, and git's configuration file in their XDG configuration folder turns it on
+- **WHEN** the repository turns the tool on and its own git configuration does not set capture, the person's `~/.gitconfig` exists and does not set capture, and git's configuration file in their XDG configuration folder turns it on
 - **THEN** the session's calls are recorded
 
 #### Scenario: The home configuration file decides when both set it
 
 - **WHEN** git's configuration file in the person's XDG configuration folder turns capture on, and their `~/.gitconfig` turns it off
+- **THEN** nothing is recorded
+
+#### Scenario: A relative XDG folder is not read
+
+- **WHEN** `XDG_CONFIG_HOME` holds a relative path, and only a git configuration file at that path inside the repository turns capture on
 - **THEN** nothing is recorded
 
 #### Scenario: A person can turn capture off in one repository
@@ -143,7 +148,7 @@ This repository SHALL be the one that holds the project directory that Claude Co
 
 #### Scenario: A worktree of this repository is this repository
 
-- **WHEN** a session made calls while its working directory was in a worktree of this repository
+- **WHEN** a session made calls while its working directory was in a worktree of this repository that lies inside the repository's own folder, as Claude Code's worktrees do
 - **THEN** those calls are recorded, and only a commit made in that worktree carries them
 
 #### Scenario: A run from another directory works on this repository
@@ -215,12 +220,12 @@ Each entry SHALL carry one activity type derived from the tools the model call i
 
 ### Requirement: Usage reaches the pull request with the agent's commits
 
-Capture SHALL run when Claude finishes responding, when a subagent finishes, when a turn ends in an API error, when the session ends, and before and after each of the agent's Bash commands that the hook's condition `Bash(git *)` matches. Every run SHALL record the calls that the transcript holds as over, so that a call that is over before such a command runs is recorded with the branch it was made on, before that command can change the branch. A call SHALL go only into a ledger file staged in the worktree that holds its line's working directory, for a commit on the branch that was checked out there when the call was recorded. Calls recorded while no branch was checked out SHALL go only to a commit made while no branch is checked out, in the same worktree. Apart from staging a ledger file, taking it back and putting it back, as the next two requirements say, the step SHALL keep what it records inside the repository's common git directory, and SHALL NOT change the working tree or the index.
+Capture SHALL run when Claude finishes responding, when a subagent finishes, when a turn ends in an API error, when the session ends, and before and after each of the agent's Bash commands that the hook's condition `Bash(git *)` matches. Every run SHALL record the calls that the transcript holds as over, so that a call that is over before such a command runs is recorded with the branch it was made on, before that command can change the branch. A call SHALL go only into a ledger file staged in the worktree that git itself finds from its line's working directory, which for a directory in a worktree inside the repository's folder is that worktree and not the main checkout around it, for a commit on the branch that was checked out there when the call was recorded. Calls recorded while no branch was checked out SHALL go only to a commit made while no branch is checked out, in the same worktree. Apart from staging a ledger file, taking it back and putting it back, as the next two requirements say, the step SHALL keep what it records inside the repository's common git directory, and SHALL NOT change the working tree or the index.
 
 #### Scenario: A one-turn session's commit carries its calls
 
-- **WHEN** the agent makes model calls and then runs `git commit -m x` alone, with changes staged, in the same turn
-- **THEN** that commit adds a ledger file holding the calls recorded before it
+- **WHEN** the agent makes model calls and then runs `git commit -m x` alone, with changes staged, in the same turn, and the transcript holds at least one of those calls as over when that commit's run reads it
+- **THEN** that commit adds a ledger file holding the calls that the transcript held as over by then
 
 #### Scenario: A turn's end leaves the working tree alone
 
@@ -249,7 +254,7 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 
 ### Requirement: A ledger file is staged only for a commit whose branch and contents the step can tell
 
-A command runs `git commit` when one of the commands it is made of is `git`, with or without git's own options, followed by the `commit` subcommand, and is not a dry run, as each of `--dry-run`, `--short`, `--porcelain` and `--long` makes it; a command that only names it, such as in single quotes or as an argument of another command, does not. Before a command that runs `git commit` in this repository, the step SHALL stage, as one new ledger file, the calls recorded in the worktree where the commit runs, while the branch now checked out there was checked out, that no ledger file holds yet, when the commit is one of the command's top-level commands, joined to the others by `&&`, `;` or line breaks, runs in the foreground, and comes after nothing but `cd` to a path that the command writes out and the git commands `add`, `rm`, `mv`, `status`, `diff`, `log` and `show`. A command substitution in the commit's own arguments SHALL count as coming before the commit, unless all it runs is `cat` reading a here-document. The step SHALL find the worktree where the commit runs from the current directory that the hook's input gives, followed through each `cd` before the commit and through git's own `-C` options, and never from the directory that the hook runs in. It SHALL add the file even when the repository's ignore rules match it, or a sparse checkout leaves its folder out. It SHALL stage nothing for any other command that runs `git commit`, such as one run in the background or followed by `&`, because it cannot tell then which branch the commit lands on or when it runs; for a commit that names the paths to commit; for a commit that would otherwise commit nothing, when no `git add`, `git rm` or `git mv` comes before it, so that it fails, or makes the empty commit asked for, as it would without the tool; when there is no such call to stage; and when the repository's attributes give the ledger path a filter or a working-tree encoding, because the commit could then hold something other than the entries as they were written.
+A command runs `git commit` when one of the commands it is made of is `git`, with or without git's own options, followed by the `commit` subcommand, and is not a dry run, which each of `--dry-run`, `--short`, `--porcelain` and `--long` makes it, as does any abbreviation of them that git accepts; a command that only names it, such as in single quotes or as an argument of another command, does not. Before a command that runs `git commit` in this repository, the step SHALL stage, as one new ledger file, the calls recorded in the worktree where the commit runs, while the branch now checked out there was checked out, that no ledger file holds yet, when the commit is one of the command's top-level commands, not part of a pipeline, joined to the others by `&&`, `;` or line breaks, runs in the foreground, and comes after nothing but `cd` to a path that the command writes out and the git commands `add`, `rm`, `mv`, `status`, `diff`, `log` and `show`. Each command substitution and process substitution in the commit or in a command before it, whether in an argument, a leading assignment or a redirection, SHALL count as a command that comes before the commit, unless all it runs is `cat` reading a here-document whose delimiter is quoted, in whole or in part, so that the shell expands nothing in its body. The step SHALL stage nothing when the commit or a command before it reads a here-document whose delimiter is not quoted, because the shell then runs any command substitution in its body. A run that comes again before the same command, as when a call that another hook deferred is resumed, SHALL stage nothing new while the file it staged for that command is still staged. The step SHALL find the worktree where the commit runs from the current directory that the hook's input gives, followed through each top-level `cd` before the commit and through git's own `-C` options, and never from the directory that the hook runs in. It SHALL add the file even when the repository's ignore rules match it, or a sparse checkout leaves its folder out, and when git refuses to add it, the step SHALL remove the file it wrote and stage nothing. It SHALL stage nothing for any other command that runs `git commit`, such as one in a pipeline, run in the background or followed by `&`, because it cannot tell then which branch the commit lands on or when it runs; for a commit that names the paths to commit; for a commit that would otherwise commit nothing, counting the changes to tracked files that `-a` adds, when no `git add`, `git rm` or `git mv` comes before it, so that it fails, or makes the empty commit asked for, as it would without the tool; when there is no such call to stage; and when git's attributes for the ledger path, from whichever file git reads them, include a filter or a working-tree encoding, because the commit could then hold something other than the entries as they were written.
 
 #### Scenario: A commit that stages its own files carries a ledger file
 
@@ -263,12 +268,22 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 
 #### Scenario: A commit message from a here-document still carries a ledger file
 
-- **WHEN** the agent runs `git commit -m "$(cat <<'EOF'`, then the lines of the message, then `EOF` and `)"`, with changes staged and calls waiting to be staged
+- **WHEN** the agent runs `git commit -m "$(cat <<'EOF'`, then the lines of the message, then `EOF` and `)"`, whose here-document's delimiter is quoted, with changes staged and calls waiting to be staged
 - **THEN** that commit carries a ledger file
 
 #### Scenario: A commit whose message another command writes takes no ledger file
 
-- **WHEN** the agent runs `git commit -m "$(./message.sh)"`
+- **WHEN** the agent runs `git commit -m "$(./message.sh)"` or `git commit -F <(./message.sh)`
+- **THEN** no ledger file is staged, and the calls wait for a later commit
+
+#### Scenario: A substitution before the commit takes no ledger file
+
+- **WHEN** the agent runs `git add "$(./pick.sh)" && git commit -m x`, or `X="$(./prepare.sh)" git commit -m x`
+- **THEN** no ledger file is staged, and the calls wait for a later commit
+
+#### Scenario: A here-document whose delimiter is not quoted takes no ledger file
+
+- **WHEN** the agent passes a commit message in a here-document whose delimiter is not quoted, as in `git commit -F - <<EOF` or `git commit -m "$(cat <<EOF`, followed by the lines of the message and `EOF`
 - **THEN** no ledger file is staged, and the calls wait for a later commit
 
 #### Scenario: A commit after another command takes no ledger file
@@ -291,6 +306,11 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 - **WHEN** the agent runs `git commit --allow-empty -m x` alone, with nothing staged
 - **THEN** no ledger file is staged, and the commit it makes is empty
 
+#### Scenario: A commit of all changes with nothing staged carries a ledger file
+
+- **WHEN** the agent runs `git commit -am x` alone, with nothing staged, a tracked file changed and calls waiting to be staged
+- **THEN** that commit holds the changed file and a ledger file
+
 #### Scenario: A commit with nothing new to record takes no ledger file
 
 - **WHEN** the agent commits, and a ledger file already holds every call recorded in that worktree on that branch
@@ -303,7 +323,7 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 
 #### Scenario: A command that only names a commit stages nothing
 
-- **WHEN** the agent runs `git commit --dry-run` or `git commit --porcelain`, or a command that only names `git commit` in its text, such as `grep 'git commit' notes.txt`
+- **WHEN** the agent runs `git commit --dry-run`, `git commit --dry` or `git commit --porcelain`, or a command that only names `git commit` in its text, such as `grep 'git commit' notes.txt`
 - **THEN** no ledger file is staged
 
 #### Scenario: A commit with git's own options is still a commit
@@ -318,8 +338,13 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 
 #### Scenario: A commit stages in the worktree where it runs
 
-- **WHEN** calls were recorded in one of the repository's worktrees, and the agent commits there, while the hook runs in the repository's main folder, or after a `cd` to that worktree in the same command
+- **WHEN** calls were recorded in one of the repository's worktrees, with the branch now checked out there, and the agent commits there, while the hook runs in the repository's main folder, or after a `cd` to that worktree's path, written out in the same command
 - **THEN** the ledger file is staged in that worktree, holding those calls, and the main folder's index is unchanged
+
+#### Scenario: A command's repeated run stages its calls once
+
+- **WHEN** the run before a `git commit` fires a second time for the same call, as when a call that another hook deferred is resumed
+- **THEN** that commit carries one ledger file of those calls: the one staged the first time if it is still staged, or else a new one
 
 #### Scenario: An ignored ledger path is still committed
 
@@ -333,12 +358,17 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 
 #### Scenario: A ledger path with a filter takes no ledger file
 
-- **WHEN** the repository's attributes give the ledger path a filter, such as Git LFS, or a working-tree encoding
+- **WHEN** git's attributes for the ledger path give it a filter, such as Git LFS, or a working-tree encoding, whether the repository's `.gitattributes`, its `.git/info/attributes` or the person's own attributes file sets it
 - **THEN** no ledger file is staged, and none is written in the working tree
+
+#### Scenario: A ledger file that git refuses to add is not left behind
+
+- **WHEN** git refuses to add the ledger file, as it does where `core.safecrlf` is on and line endings are converted
+- **THEN** no ledger file is staged, none is left in the working tree, and the calls wait for a later commit
 
 ### Requirement: A ledger file that no commit takes is taken back
 
-A commit holds a ledger file when the commit checked out in the worktree where the file was staged holds it. When the result of the command that the file was staged for returns, whether the command succeeded or failed, the run after that command SHALL take the file back, from the index and the working tree, unless a commit holds it, and its calls SHALL wait for a later commit. A command that gets no such run, because it was refused, blocked by another hook, cancelled or interrupted, SHALL have its file taken back the same way by any later run of the step in the repository, in that session or another, that finds the command over: by its result in a transcript, by a later call of the agent that ran it, by that agent having stopped, or by its session having ended. A take-back SHALL NOT remove a file that a commit holds, and SHALL leave the file for a later run while another git command holds the index of that worktree. When a commit holds a ledger file that the step took back, and the index lacks it, as when a commit that is still running takes the file while the step takes it back, a run SHALL put the file back into the index and the working tree as that commit holds it.
+A commit holds a ledger file when the commit checked out in the worktree where the file was staged holds it. When the result of the command that the file was staged for returns, whether the command succeeded or failed, the run after that command SHALL take the file back, from the index and the working tree, unless a commit holds it, and its calls SHALL wait for a later commit. A command that gets no such run, because it was refused, blocked by another hook, cancelled or interrupted, SHALL have its file taken back the same way by any later run of the step in the repository, in that session or another, that finds the command over: by its result in a transcript, by a later call of the agent that ran it, by that agent having stopped, or by its session having ended. A take-back SHALL NOT remove a file that a commit holds, and SHALL leave the file for a later run while another git command holds the index of that worktree. A commit can still take a file that a take-back removes, as a commit that is still running can while the step takes the file back. So the step SHALL note, for each file it takes back, the commit that it found checked out in that worktree, not holding the file, before it removed it, and the first later run there that finds another commit checked out and the index free SHALL put the file back into the index and the working tree, as that commit holds it, when that commit holds it and the index lacks it, and SHALL then forget the file, whether it put it back or not. The step SHALL put back no other file, so that a ledger file that anyone else removes stays removed.
 
 #### Scenario: A commit that does not happen leaves nothing staged
 
@@ -352,23 +382,28 @@ A commit holds a ledger file when the commit checked out in the worktree where t
 
 #### Scenario: A session's end takes back what its commands left staged
 
-- **WHEN** a session ends while the step has a ledger file staged for one of its commands that no commit took, such as a `git commit` that was interrupted
+- **WHEN** a session ends while the step has a ledger file staged for one of its commands that no commit took, such as a `git commit` that was interrupted, no other git command holds the index of its worktree, and the session's transcript holds more than that run can read within its time budget
 - **THEN** the run when the session ends takes the file back, from the index and the working tree
 
 #### Scenario: A later session takes back what an earlier one left staged
 
-- **WHEN** a session was interrupted while the step had a ledger file staged for its `git commit`, no later run of that session took it back, as when its process was then killed, and another session's run in the repository finds that command's result in the earlier session's transcript
+- **WHEN** a session was interrupted while the step had a ledger file staged for its `git commit`, no commit took the file, no later run of that session took it back, as when its process was then killed, and another session's run in the repository finds that command's result in the earlier session's transcript while no other git command holds the index
 - **THEN** that run takes the file back, from the index and the working tree
 
 #### Scenario: A take-back waits while the index is in use
 
-- **WHEN** a ledger file is due to be taken back, and another git command holds the index lock of its worktree
+- **WHEN** a ledger file is due to be taken back, and another git command that does not commit the file holds the index lock of its worktree
 - **THEN** the run leaves the file and the lock as they are, and a later run takes the file back
 
 #### Scenario: A take-back leaves a committed file in place
 
-- **WHEN** a commit takes the ledger file after its command's result has returned, as a commit that Claude Code moved to the background at its timeout can, whether before a take-back of that file runs or while it runs
-- **THEN** the file stays in that commit, and after the step's next run the index and the working tree hold it as that commit does
+- **WHEN** a commit takes the ledger file after its command's result has returned, as a commit that Claude Code moved to the background at its timeout can, whether before a take-back of that file runs or while it runs, and no other commit is made in that worktree before the step next runs there with that commit checked out and the index free
+- **THEN** the file stays in that commit, and after that run the index and the working tree hold it as that commit does
+
+#### Scenario: A ledger file that a person removes stays removed
+
+- **WHEN** a commit holds a ledger file, and the person removes it with `git rm`, whether or not the step once put that file back
+- **THEN** no run of the step puts it back, and the person's next commit removes it
 
 ### Requirement: A ledger file is written once
 
@@ -414,7 +449,7 @@ The capture step SHALL be one Python file that imports nothing but Python's stan
 
 ### Requirement: Capture never breaks or steers the session
 
-A failure inside the capture step SHALL NOT stop or fail the agent's session. The registered command SHALL exit with success even when its script cannot be read or started. The step SHALL print nothing on standard output, SHALL write no text taken from the transcript or the ledger to standard error, and SHALL finish within a time budget, leaving what it has not read for a later run. On failure it SHALL leave the ledger and its own records as they were.
+A failure inside the capture step SHALL NOT stop or fail the agent's session. The registered command SHALL exit with success even when its script cannot be read or started, in each shell that Claude Code runs a hook's command in: `sh`, Git Bash on Windows, and PowerShell on Windows without Git Bash. The step SHALL print nothing on standard output, SHALL write no text taken from the transcript or the ledger to standard error, and SHALL finish within a time budget, leaving what it has not read for a later run. On failure it SHALL leave the ledger and its own records as they were.
 
 #### Scenario: An unreadable transcript is skipped
 
@@ -425,6 +460,11 @@ A failure inside the capture step SHALL NOT stop or fail the agent's session. Th
 
 - **WHEN** the step fails for any reason, including when its script cannot be read or started
 - **THEN** the registered command exits with success and has printed nothing on standard output
+
+#### Scenario: The registered command succeeds in PowerShell
+
+- **WHEN** the registered command runs in Windows PowerShell or in PowerShell 7, as Claude Code runs a hook's command on Windows without Git Bash, and its script cannot be found or Python cannot be started
+- **THEN** the command exits with success and prints nothing on standard output
 
 #### Scenario: A failure message quotes nothing from the transcript
 

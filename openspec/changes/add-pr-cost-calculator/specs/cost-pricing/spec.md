@@ -119,6 +119,11 @@ The CI cost SHALL count every attempt of every job of every workflow run on the 
 - **WHEN** the default branch is moved forward to the pull request's head commit as it is, and that push starts workflow runs on the same commit, one of them with a creation time before the pull request's merge time
 - **THEN** the runs created before the merge that the push did not start are counted, and none of the runs that the push started is
 
+#### Scenario: A run that the pull request's closing starts is not counted
+
+- **WHEN** a workflow on the pull request's `closed` event runs on its head commit, with a creation time at or after the pull request's merge time
+- **THEN** none of its jobs are counted
+
 #### Scenario: A job on a runner the price table does not list is not priced
 
 - **WHEN** a job ran on a runner that the price table does not list
