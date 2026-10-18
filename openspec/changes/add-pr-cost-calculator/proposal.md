@@ -30,8 +30,9 @@ None. This repository has no specs yet.
 ## Impact
 
 - New: a hook script for Claude Code, as one file that an adopter copies from the commit that their workflow pins, a reusable GitHub Actions workflow, a price table, the threat model, and their tests.
-- Development tools added with the first code: coverage.py, Hypothesis and mutmut, pinned like the others.
+- Development tools added with the first code: coverage.py, Hypothesis, mutmut, and detect-secrets, which checks that a ledger file does not look like a secret to a common scanner, pinned like the others.
 - A repository that adopts the tool gains a configuration file, the ledger files that each pull request's commits add, which stay after merge as the record, and a workflow of its own that runs on pushes to the default branch and calls the tool's reusable workflow, granting it only `pull-requests: write` to comment, `actions: read` to read job times and `contents: read` to read the ledger.
 - Each person whose sessions should be recorded turns capture on in their own global git configuration. A call made while the session's working directory is in the repository is recorded there even when it works on another repository, so work on other repositories belongs in sessions of its own.
 - Agents other than Claude Code are out of scope for this change. The ledger format is documented, so other agents can write it later.
+- Sessions that send shell commands through Claude Code's PowerShell tool, as on Windows, are out of scope too: the hooks are registered for Bash, which never sees those commands.
 - The cost of AI code review on the pull request is out of scope for this change too, as the owner decided on 2026-10-18. A later change can add it once it is known where that usage can be read.

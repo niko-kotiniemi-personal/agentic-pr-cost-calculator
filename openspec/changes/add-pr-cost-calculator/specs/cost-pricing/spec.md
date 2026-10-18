@@ -77,7 +77,7 @@ A ledger entry whose model is `unknown`, because the capture step's price table 
 
 ### Requirement: CI minutes are billed per job, rounded up
 
-The CI cost SHALL count every attempt of every job of every workflow run that was created before the pull request merged, on the pull request's own commits: the commits that its head holds and that the default branch did not hold before the merge, read from git, however many there are. The runs that the merge starts, which are created as it merges or after, SHALL NOT be counted, even when they run on one of the pull request's own commits, as after a fast-forward; nor SHALL runs on any other commit, such as the new commits that a squash or rebase merge makes. Each attempt's minutes SHALL be its duration rounded up to a whole minute, priced at the rate for its runner type on its UTC day. A job on a runner that the price table does not list SHALL be counted in minutes and left out of the cost. If any run or job counted cannot be read, or has not finished, the CI cost SHALL be marked incomplete, and SHALL NOT be presented as the total.
+The CI cost SHALL count every attempt of every job of every workflow run on the pull request's own commits that no push to the default branch started and that was created before the pull request merged. The pull request's own commits are those that its head holds and that the default branch did not hold before the merge, read from git, however many there are. So the runs that the merge's push starts SHALL NOT be counted, even when they run on one of the pull request's own commits, as after a fast-forward, and whatever their creation times; nor SHALL runs on any other commit, such as the new commits that a squash or rebase merge makes. Each attempt's minutes SHALL be its duration rounded up to a whole minute, priced at the rate for its runner type on its UTC day. A job on a runner that the price table does not list SHALL be counted in minutes and left out of the cost, and the report SHALL say how many minutes ran on runners it could not price. If any run or job counted cannot be read, or has not finished, the CI cost SHALL be marked incomplete, and SHALL NOT be presented as the total.
 
 #### Scenario: A job's minutes are rounded up
 
@@ -116,8 +116,8 @@ The CI cost SHALL count every attempt of every job of every workflow run that wa
 
 #### Scenario: A fast-forward merge counts the pull request's runs, not the push's
 
-- **WHEN** the default branch is moved forward to the pull request's head commit as it is, and that push starts workflow runs on the same commit
-- **THEN** the runs created before the merge are counted, and the runs the push starts are not
+- **WHEN** the default branch is moved forward to the pull request's head commit as it is, and that push starts workflow runs on the same commit, one of them with a creation time before the pull request's merge time
+- **THEN** the runs created before the merge that the push did not start are counted, and none of the runs that the push started is
 
 #### Scenario: A job on a runner the price table does not list is not priced
 

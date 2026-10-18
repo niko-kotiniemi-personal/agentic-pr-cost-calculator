@@ -30,7 +30,7 @@ A repository SHALL turn the calculator on by adding its configuration file with 
 
 ### Requirement: A merged pull request gets one report comment
 
-When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost; the price table's date; the tool's version; the number of ledger entries it counted, and the number of entries and files it did not count, for each reason this capability gives; the number of calls that capture refused; and the number of calls that capture read without a stop reason, and, when there are any, that the token cost is a lower bound. It SHALL state that the figure is an API-equivalent estimate, not a bill, and that it counts the usage that the pull request's commits carry and the CI runs on those commits. When the report runs again, it SHALL update its earlier comment, and SHALL update only a comment that its own identity wrote.
+When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost, and how many of those minutes ran on runners that the price table does not list; the price table's date; the tool's version; the number of ledger entries it counted, and the number of entries and files it did not count, for each reason this capability gives; the number of calls that capture refused; and the number of calls that capture read without a stop reason, and, when there are any, that the token cost is a lower bound. It SHALL state that the figure is an API-equivalent estimate, not a bill, and that it counts the usage that the pull request's commits carry and the CI runs on those commits. When the report runs again, it SHALL update its earlier comment, and SHALL update only a comment that its own identity wrote.
 
 #### Scenario: The comment states the totals
 
@@ -122,7 +122,7 @@ The pull request's usage ledger SHALL remain on the default branch after merge, 
 
 ### Requirement: The report reads the ledger from git, within bounds
 
-The report SHALL read ledger files only as blobs from git, never through the working tree. It SHALL refuse an added path in the ledger folder that is not a regular file, such as a symbolic link or a submodule, and SHALL learn each blob's size before reading it. It SHALL refuse the ledger change when the added ledger files are larger in total than a size bound that the ledger format documents, and SHALL then still report the CI cost.
+The report SHALL read ledger files only as blobs from git, never through the working tree. It SHALL refuse an added path in the ledger folder that is not a regular file, such as a symbolic link or a submodule, and SHALL learn each blob's size before reading it. It SHALL refuse the ledger change when the added ledger files are larger in total than the size bound that the ledger format documents, which capture applies to each ledger file it reads, and SHALL then still report the CI cost.
 
 #### Scenario: An oversized ledger is refused
 
