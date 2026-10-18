@@ -1,0 +1,24 @@
+# Security policy
+
+## Reporting a vulnerability
+
+Please report vulnerabilities privately through GitHub: open this repository's **Security** tab and choose **Report a vulnerability**. Do not open a public issue for a security problem.
+
+We aim to acknowledge a report within a week and will tell you what we decide to do about it.
+
+## Supported versions
+
+There is no release yet. Once there is, fixes go to the latest release only.
+
+## What this tool handles
+
+The calculator will read token-usage records and GitHub Actions job data, and it will write one comment on the pull request it measures. The usage ledger it reads is committed with the pull request. It is designed so that:
+
+- it needs no secret beyond the `GITHUB_TOKEN` a workflow already has, with the narrowest permissions that work;
+- it records counts, the model, the price attributes, the UTC day, the activity type, whether the main agent or a subagent made the call, and a hash of the call's message id, and never prompts, code, tool names, transcript text or any session identifier;
+- it records a person's usage only when that person has turned capture on for themselves, and only for calls made while their session's working directory is in the repository that publishes it, which includes whatever that session does in other repositories;
+- its tests use synthetic fixtures only, never real usage data.
+
+A change that would break any of these is a security issue.
+
+The threats the design answers, and how each is held, are in [`docs/threat-model.md`](docs/threat-model.md).

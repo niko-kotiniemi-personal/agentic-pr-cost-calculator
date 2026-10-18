@@ -1,0 +1,379 @@
+# Threat model
+
+What could go wrong with the calculator, for the people who use it and for this repository, and what answers each threat. Every change revisits this file (see `CLAUDE.md`).
+
+It was written for the first change, `add-pr-cost-calculator`, before any code, so the answers are requirements and tasks rather than code. Where an answer can be a scenario in a spec, it is one, so that an acceptance test holds it. `tests/test_threat_model.py` checks that every citation below names a scenario, task, decision or file that exists.
+
+## How it was built
+
+1. Draw how data moves, from the agent's session to the comment on the pull request.
+2. Mark each trust boundary: a place where data crosses from one party's control into another's.
+3. At each boundary, ask the six STRIDE questions. Can someone pretend to be someone else (**spoofing**)? Change what they should not (**tampering**)? Deny what they did (**repudiation**)? See what they should not (**information disclosure**)? Stop it working (**denial of service**)? Gain powers they should not have (**elevation of privilege**)? A seventh kind, **reliability**, covers failures nobody causes on purpose that would still make a figure wrong.
+4. Rate each threat's impact. **High:** private data is published, or someone gains a write token or runs code they should not. **Medium:** a figure is wrong or misleading, or someone's work is disturbed. **Low:** an inconvenience, or a small error that the report makes visible.
+5. Give each threat its answer, and cite what holds that answer: a scenario (`capability`: "name"), a task or a decision of a change, or a file. A threat with no answer is marked accepted, with the reason.
+
+## How data moves
+
+```mermaid
+flowchart LR
+  subgraph session["Developer's machine or cloud session"]
+    T[Session and subagent transcripts] -->|read by the hooks| C[Capture step]
+    C -->|records| S[Store in the git directory]
+    S -->|before each commit| L[New ledger file, staged]
+  end
+  L -->|commit and push| B[Pull request branch]
+  subgraph github["GitHub"]
+    B -->|merge by the owner| M[Default branch]
+    M -->|push event| R[Report workflow]
+    P[Price table, pinned with the tool] --> R
+    J[Actions jobs API] --> R
+    R -->|post or update| K[Comment on the pull request]
+  end
+```
+
+The trust boundaries:
+
+1. **Transcript to capture.** The transcript holds everything the session saw, in every repository it worked in: prompts, code, tool output, web pages and possibly secrets. Only the counts of calls made from this repository may cross, and only with the consent of the person whose session it is.
+2. **Capture to the repository.** The capture step keeps its records in the repository's git directory, and writes and stages files in a working tree it does not control, in the middle of someone's work.
+3. **Ledger to report.** Whoever can push to a pull request's branch writes its ledger, and its whole diff, including the author of a pull request from a fork. The report must treat both as untrusted data.
+4. **Report to GitHub.** The report holds a token that can write comments.
+5. **Comment to readers.** What the report posts is rendered as Markdown for everyone who reads the pull request.
+6. **Tool to adopters.** Adopters run the hook on their machines and the report in their CI, called from a workflow they write.
+7. **Contributors to this repository.** Anyone can open a pull request here, and agents working here read what others wrote.
+
+## Boundary 1: transcript to capture
+
+### T1. Transcript text reaches the ledger
+
+- **Kind:** information disclosure
+- **Impact:** high
+- **What could happen:** a prompt, a piece of code, a file's contents, a tool's output or a secret is copied into a ledger entry and published with the pull request.
+- **Answer:** entries are built from typed values only. A count is copied as a number. The only text taken from a transcript is the model's name and the values of the price attributes, each only when the price table that the hook ships with lists it, or else recorded as `unknown`, because a private gateway, a custom model or an alias can have a name that looks like one of Anthropic's. Tool names, including MCP server names, which can name a private service, are read only to choose the activity type and are never written.
+- **Held by:** `usage-capture`: "Content in the transcript does not reach the ledger"; `usage-capture`: "A planted string never reaches the ledger"; `usage-capture`: "An unexpected model name is recorded as unknown"; `usage-capture`: "A model name the price table does not list is recorded as unknown"; `usage-capture`: "An attribute value the price table does not list is recorded as unknown"; `usage-capture`: "An MCP call does not record the server's name"
+
+### T2. Work in another repository is published here
+
+- **Kind:** information disclosure
+- **Impact:** high
+- **What could happen:** a transcript belongs to a session, not to a repository, and one session can work in several, such as a public one and a private one. Recording the whole transcript would publish, in the public repository's ledger and comment, how much work went into the private one and with which models.
+- **Answer:** capture records only the calls whose transcript line gives a working directory in this repository, meaning one whose git common directory is this repository's. Calls made in another repository, in a separate repository nested inside this one's folder, or in a folder that contains this one, are not recorded here.
+- **Residual:** a line's working directory is the session's, not where the call worked. A session started in this repository that works on another one through absolute paths, or by changing directory within a command, has those calls recorded here, with their counts and models. No rule over the transcript's working directories can tell them apart. The README tells a person who opts in to keep work on other repositories, private ones above all, out of such sessions. A session that works from a folder above the repository records nothing, so its figure is too low.
+- **Held by:** `usage-capture`: "Calls made from outside this repository are not recorded"; `usage-capture`: "A repository nested inside this one is not this one"; `add-pr-cost-calculator` task 4.4
+
+### T3. A person's usage is published without their consent
+
+- **Kind:** information disclosure
+- **Impact:** medium
+- **What could happen:** a repository's owner turns the tool on, and the usage of everyone who works there, including outside contributors who never agreed, is committed and published with their pull requests.
+- **Answer:** capture also needs the person's own opt-in, in their global git configuration, which is not part of the repository. It is read from the files in the person's home directory, ignoring the environment variables that a repository's settings could set to point git at a file that opts everyone in, and a repository's own git configuration can turn it off but not on. The README says what is published when capture is on.
+- **Residual:** a repository's own hooks can run any command on a contributor's machine, including one that changes that setting (see Assumptions). One opt-in covers every repository that uses the tool, until the person turns it off in one.
+- **Held by:** `usage-capture`: "A person who has not opted in is not recorded"; `usage-capture`: "No configuration file means no capture"; `usage-capture`: "A repository's own git configuration cannot opt a person in"; `usage-capture`: "The environment cannot opt a person in"; `usage-capture`: "A person can turn capture off in one repository"; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` task 4.4
+
+### T4. An identifier links the ledger to a session or a person
+
+- **Kind:** information disclosure
+- **Impact:** medium
+- **What could happen:** the transcript carries session ids, request ids, the working directory, user names inside paths, and the branch. Any of them in the ledger would link a public record to a person or a private session.
+- **Answer:** a call is identified by a SHA-256 hash of its message id, kept only so that no call is recorded twice. No session value, path, working directory, user name or branch name is written into an entry, and a ledger file's name is random.
+- **Residual:** whoever holds the original message ids, such as the session's owner, can match them to entries. That is the person the data came from.
+- **Held by:** `usage-capture`: "Content in the transcript does not reach the ledger"
+
+### T5. Call times show when someone works
+
+- **Kind:** information disclosure
+- **Impact:** low
+- **What could happen:** a time on every model call would show, call by call, when a contributor's agent was working, in a repository anyone can read.
+- **Answer:** an entry records the UTC day only, which is all that pricing needs.
+- **Residual:** commit times in git already show when someone worked. The ledger adds nothing finer than the day.
+- **Held by:** `usage-capture`: "An entry records the UTC day, not the time"
+
+### T6. A malformed value is recorded as usage
+
+- **Kind:** tampering
+- **Impact:** medium
+- **What could happen:** a transcript in an unexpected shape gives counts as text, fractions, negative numbers, not-a-number, or `true` and `false`, which Python accepts where it expects a number. Recorded as they are, they make the cost wrong.
+- **Answer:** every count must be a whole number from zero up to a documented ceiling. `true` and `false` are refused explicitly. A call with a refused value is left out, and the ledger counts it as refused, so that the comment can say how many were left out. A hook that succeeds shows its standard error to no one, so the count is kept in the ledger and not printed.
+- **Held by:** `usage-capture`: "A count that is not a whole number is refused"; `usage-capture`: "A negative count is refused"; `cost-reporting`: "Calls that capture refused are counted in the comment"
+
+### T7. One call is counted more than once, or from a partial line
+
+- **Kind:** reliability
+- **Impact:** medium
+- **What could happen:** Claude Code can write one model call over several transcript lines. In one shape of subagent transcript, the earlier lines carry partial usage; in another, almost no line gives a stop reason, and a few calls' only usage is partial. Capture also runs again after every turn over the same transcript. Counting lines would count a call several times, reading an early line would count it short, and waiting for a stop reason that never comes would leave the call out.
+- **Answer:** a call is recorded once, by the hash of its message id, from its lines that give a stop reason. A call with no such line is read from its last line once a later call follows it or its agent has stopped, and the ledger counts those calls, so that the comment can say how many figures may be low. A call that is not over yet waits for a later run. Final lines of one call that disagree are refused rather than guessed at.
+- **Residual:** a call read without a stop reason can still be short. The comment gives their number.
+- **Held by:** `usage-capture`: "Running again records nothing twice"; `usage-capture`: "A call written over several lines is recorded once"; `usage-capture`: "A call's partial lines are not used"; `usage-capture`: "A call followed by a later one is read without its stop reason"; `usage-capture`: "A stopped agent's last call is read without its stop reason"; `usage-capture`: "A call still being written is recorded later"; `usage-capture`: "Lines of one call that disagree are refused"; `usage-capture`: "Subagent calls are included"; `cost-reporting`: "Calls read without a stop reason are counted in the comment"
+
+### T8. Usage never reaches the pull request
+
+- **Kind:** reliability
+- **Impact:** medium
+- **What could happen:** a session's machine can be disposable, so a call that is recorded but never committed is lost with it. The newest calls can be missing from the transcript when capture runs, because Claude Code writes it asynchronously. A turn that ends in an API error runs no `Stop` hook, and a session that ends after one turn has no later turn to carry its calls. A commit made with git's own options before `commit`, or a ledger file that an ignore rule matches, could be missed.
+- **Answer:** capture runs before and after every `git commit` the agent runs in this repository, recognised whatever options git is given first, as well as when a turn, a subagent or a failed turn ends, so each commit carries the calls recorded on its branch up to that moment, including those of the turn that commits. A call that one run missed is recorded by a later one, and an ignore rule cannot drop the ledger file.
+- **Residual:** calls made after the agent's last commit on a branch, such as pushing and opening the pull request, reach no commit, and neither do calls whose only later commits were made another way, by `git merge`, `git cherry-pick`, a script or an API. The README says so, and the comment counts what the pull request's commits carry. A subagent that never finishes leaves its last call unread when that call gives no stop reason.
+- **Held by:** `usage-capture`: "A one-turn session's commit carries its calls"; `usage-capture`: "A turn that ends in an API error is still recorded"; `usage-capture`: "A call still being written is recorded later"; `usage-capture`: "A commit with git's own options is still a commit"; `usage-capture`: "An ignored ledger path is still committed"
+
+### T9. Usage that costs extra is priced as standard
+
+- **Kind:** reliability
+- **Impact:** medium
+- **What could happen:** the price of a call can depend on more than its tokens: a higher rate for a long prompt on some models, a multiplier for the inference region, a premium for a faster speed, and a charge per web search. Ignoring them would under-report without saying so.
+- **Answer:** capture records these attributes where the transcript gives them. Pricing applies every modifier the price table lists, and names, rather than guesses, any value or combination it has no price for. Web fetches are listed at no charge, so a call that made them is still priced.
+- **Held by:** `usage-capture`: "Price attributes are recorded"; `cost-pricing`: "A long prompt is priced at its higher rates"; `cost-pricing`: "A region multiplier applies to every token type"; `cost-pricing`: "Web searches are priced per search"; `cost-pricing`: "Web fetches add nothing beyond their tokens"; `cost-pricing`: "An unpriced attribute is named, not guessed"
+
+## Boundary 2: capture to the repository
+
+### T10. Capture disturbs the agent's git work
+
+- **Kind:** denial of service
+- **Impact:** medium
+- **What could happen:** staged changes left between commits make `git rebase` refuse to run, and a staged change to a file that another branch lacks makes `git checkout` refuse too. A new file left staged follows a checkout to the next branch, carrying its calls into the wrong pull request. A run that holds the index lock while the agent commits makes the commit fail. A commit that would have failed for having nothing to commit would succeed instead, holding only the ledger file.
+- **Answer:** between commits, capture keeps its records in the git directory and leaves the working tree and the index alone. It stages a ledger file only just before the agent's own `git commit`, and the run after that command takes the file back at once if the commit did not take it. No other run touches the index. It stages nothing for a commit that would otherwise be empty, for a dry run, for a commit of named paths, or for a command that only names a commit.
+- **Held by:** `usage-capture`: "A turn's end leaves the working tree alone"; `usage-capture`: "A commit that does not happen leaves nothing staged"; `usage-capture`: "A commit with nothing to commit stays empty"; `usage-capture`: "A commit of named paths takes no ledger file"; `usage-capture`: "A command that only names a commit stages nothing"; `usage-capture`: "A commit in another repository stages nothing here"; `usage-capture`: "Calls go to the worktree and branch they were recorded on"; `usage-capture`: "Calls made with no branch checked out wait for a commit made the same way"; `usage-capture`: "Switching branches records nothing twice"
+
+### T11. Capture writes outside the ledger
+
+- **Kind:** tampering
+- **Impact:** medium
+- **What could happen:** a repository can contain symbolic links. If a folder on the ledger's path were a link, writing the ledger would write somewhere else on the machine, such as a shell's start-up file.
+- **Answer:** a ledger file's name is random and is created only if no file of that name exists, and capture refuses any path with a symbolic link in a folder below the repository root. The branch name plays no part in the path.
+- **Held by:** `usage-capture`: "A symbolic link in the ledger path is refused"; `usage-capture`: "A new file for every commit"
+
+### T12. Capture stages unrelated work
+
+- **Kind:** tampering
+- **Impact:** medium
+- **What could happen:** if the step staged more than its own file, unrelated changes, perhaps ones not meant to be shared, would go into the agent's next commit.
+- **Answer:** the step stages exactly the ledger file it wrote.
+- **Held by:** `usage-capture`: "Other changes stay unstaged"
+
+### T13. Two writers spoil the record
+
+- **Kind:** reliability
+- **Impact:** low
+- **What could happen:** a session and its subagents can stop at the same moment, and Claude Code runs matching hooks in parallel. Writes that interleave would split records, and two branches appending to one ledger file would conflict when they merge. A worktree with a store of its own would record again a call that the main folder's store holds, so that it reached two branches.
+- **Answer:** each ledger file is written once, whole, under a new random name, so no two runs or branches write the same file, and runs at the same time keep every record whole and record no call twice. The store lives in the repository's common git directory, which every worktree shares.
+- **Held by:** `usage-capture`: "Two runs at once"; `usage-capture`: "Two worktrees share one record of a call"; `usage-capture`: "A worktree of this repository is this repository"; `usage-capture`: "A new file for every commit"
+
+### T14. The hook steers or stalls the agent
+
+- **Kind:** elevation of privilege
+- **Impact:** high
+- **What could happen:** a `Stop` hook that exits with code 2 sends the agent back to work with the hook's message, and a `PreToolUse` hook that exits 2 blocks the agent's commit. JSON on standard output can do the same, or approve a command without asking. Python itself exits 2 when it cannot open its script, for example when the file is unreadable. Any transcript or ledger text in such a message would reach the agent as an instruction. A slow hook holds the session until it ends, for up to the 600 seconds of Claude Code's default timeout.
+- **Answer:** the registered command ends in `|| true`, so it exits with success even when its script cannot be started. The step prints nothing on standard output, and its messages on standard error are its own words and numbers, never text from the transcript or the ledger. Claude never sees the standard error of a hook that succeeds. The command has a short timeout, and the step stops at a time budget inside it, leaving the rest for a later run.
+- **Held by:** `usage-capture`: "Capture never asks the agent to continue"; `usage-capture`: "A failure message quotes nothing from the transcript"; `usage-capture`: "A long transcript does not hold up the session"; `usage-capture`: "An unreadable transcript is skipped"; `add-pr-cost-calculator` task 2.3
+
+### T15. The hook runs code planted beside it
+
+- **Kind:** elevation of privilege
+- **Impact:** medium
+- **What could happen:** Python imports from a script's own folder first, so a file there named like a standard module, such as `json.py`, would run in place of the real one.
+- **Answer:** the documented hook command runs Python in isolated mode (`python3 -I`), which leaves the script's folder, the current directory and Python's environment variables out of the import path.
+- **Held by:** `add-pr-cost-calculator` task 2.3
+
+## Boundary 3: ledger to report
+
+### T16. A ledger is edited by hand to change the cost
+
+- **Kind:** tampering
+- **Impact:** low
+- **What could happen:** a contributor lowers or raises the reported cost by editing their ledger.
+- **Answer:** none in the tool. The ledger is in the pull request's diff, where a reviewer sees it.
+- **Held by:** accepted: the ledger is reviewed like any other file in the pull request, and the report is an estimate, not a bill.
+
+### T17. A ledger entry is malformed or hostile
+
+- **Kind:** tampering, denial of service
+- **Impact:** medium
+- **What could happen:** a ledger line has the wrong types, unknown fields, impossible numbers, a date in the future or before any known price, two versions of one call, or text written to be shown in the comment. One such line could also stop the whole report.
+- **Answer:** the report reads each line against the same strict format that capture writes, refuses any line that does not match, and says how many it refused, showing none of them. An entry dated after the day the report runs is refused, an entry older than any price is named and left out, and entries of one call that differ are all refused. None of these stops the report.
+- **Held by:** `cost-reporting`: "Refused ledger lines are counted, not shown"; `cost-reporting`: "A name with markup is not shown as written"; `cost-reporting`: "Entries of one call that disagree are refused"; `cost-pricing`: "An entry from the future is refused"; `cost-pricing`: "Usage before any known price is named, not priced"
+
+### T18. The report reads more than it should
+
+- **Kind:** denial of service, information disclosure
+- **Impact:** medium
+- **What could happen:** a pull request adds a ledger too large to read in reasonable time or memory, or commits a symbolic link in the ledger folder, which a report reading the working tree would follow to `/dev/zero` or to a file on the runner.
+- **Answer:** the report reads ledger files only as blobs from git, never through the working tree. It refuses any added path that is not a regular file, learns each blob's size before reading it, and refuses ledger changes above a documented size bound, while still reporting the CI cost.
+- **Held by:** `cost-reporting`: "A ledger that is a link is refused"; `cost-reporting`: "An oversized ledger is refused"
+
+### T19. Entries are counted for the wrong pull request
+
+- **Kind:** tampering
+- **Impact:** medium
+- **What could happen:** a branch name used again, or entries copied from another pull request's ledger, would count the same usage twice. A session resumed in another clone, on another branch, can record calls that an earlier branch's ledger files already hold. A push that merges several pull requests, as a merge queue can, would charge one of them with the ledgers and runs of all.
+- **Answer:** the report counts only the entries of ledger files that the merge adds, does not count an entry whose call the default branch already held before the merge, and counts a call that the pull request adds twice once. So a call recorded on two branches is counted once, for whichever pull request merges first, and a resumed session records nothing again that its own branch already holds. A push that merges more than one pull request gets no comment, and its job summary says why.
+- **Residual:** a call recorded on two branches can be counted for the wrong one of the two pull requests.
+- **Held by:** `cost-reporting`: "A reused branch name is not double-counted"; `cost-reporting`: "A copied entry is counted once"; `cost-reporting`: "One call added twice is counted once"; `cost-reporting`: "A push that merges several pull requests gets no comment"; `usage-capture`: "A resumed session records nothing its branch already holds"
+
+### T20. A pull request erases part of the record
+
+- **Kind:** tampering, repudiation
+- **Impact:** medium
+- **What could happen:** the ledger files on the default branch are the record of earlier pull requests, and a later pull request could delete or change them.
+- **Answer:** the deletion or change is in the pull request's diff before it merges. After the merge, its comment says how many earlier ledger files it removed or changed and counts none of their entries, and git history still holds the files as they were.
+- **Held by:** `cost-reporting`: "Removed or changed ledger files are flagged"
+
+### T21. A pull request changes its own report
+
+- **Kind:** repudiation, tampering
+- **Impact:** medium
+- **What could happen:** the workflow that runs the report, the tool version it pins and the configuration file are all files in the repository, so a pull request can change them, and its merge is then reported by what it changed. It could turn the tool off to go unreported, or pin a different version of the tool, with different code and prices.
+- **Answer:** the report reads the configuration from the default branch both before and after the merge, and runs if either turns the tool on. When a pull request changes the configuration file or any workflow file, its comment says so, because any workflow can run with the identity that posts the report.
+- **Residual:** a pull request that removes the report's workflow, or points it at code that is not this tool, gets no honest report. That change is in its diff, which the owner reviews before merging.
+- **Held by:** `cost-reporting`: "A pull request cannot turn off its own report"; `cost-reporting`: "A changed report is flagged"; `add-pr-cost-calculator` decision 7
+
+### T22. A large pull request is read only in part
+
+- **Kind:** reliability
+- **Impact:** medium
+- **What could happen:** GitHub's API lists at most 3000 files and 250 commits for one pull request, and lists only the latest attempt of each job unless asked for all. A report built on those lists would quietly miss the rest. A squash or rebase merge puts new commits on the default branch, which no CI ran on, so a report that took its commits from the push would find none of the pull request's runs, while the push's own runs are still going when the report runs.
+- **Answer:** the report reads a pull request's changes from git rather than from those capped lists, and its own commits from its head ref, `refs/pull/<number>/head`, whatever the merge method. It counts the runs on those commits only, asks for every attempt of every job, and leaves out the runs that the merge starts. If any data it needs cannot be read in full, or a run on those commits has not finished, it marks the figure incomplete instead of presenting part of it as the whole.
+- **Residual:** runs on commits that a force-push removed from the pull request are not counted. The comment says that the CI minutes are those of the pull request's own commits.
+- **Held by:** `cost-pricing`: "Every commit is counted, beyond what the API lists"; `cost-pricing`: "A squash merge counts the runs on the pull request's commits"; `cost-pricing`: "A rebase merge counts the runs on the pull request's commits"; `cost-pricing`: "Runs that the merge starts are not counted"; `cost-pricing`: "A re-run job counts every attempt"; `cost-pricing`: "An incomplete jobs listing is reported as incomplete"; `cost-pricing`: "A run that has not finished makes the cost incomplete"; `add-pr-cost-calculator` decision 7
+
+## Boundary 4: report to GitHub
+
+### T23. Code from a pull request runs with a write token
+
+- **Kind:** elevation of privilege
+- **Impact:** high
+- **What could happen:** this is the best-known way into a GitHub workflow. A workflow triggered by an outside pull request is given a write token, then runs that pull request's code, which can then use the token. The `pull_request_target` event gives such a token, and GitHub's documentation says to avoid it when a workflow builds or runs the pull request's code.
+- **Answer:** the report runs on the push that a merge makes to the default branch, so it runs only after the owner has merged, and refuses every other event, whatever triggered the workflow that calls it. It checks out its own code at the commit its caller pins, by the `job` context's workflow repository and commit, and reads the pull request's files only as data, never running, importing or installing anything from them.
+- **Held by:** `cost-reporting`: "Nothing from the pull request is run"; `cost-reporting`: "Another event is refused"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.3
+
+### T24. The token can do more than the report needs, or leaks
+
+- **Kind:** elevation of privilege, information disclosure
+- **Impact:** medium
+- **What could happen:** a token with wider permissions than the report needs turns any bug into a bigger one, and a token printed to a public log can be used until the job ends.
+- **Answer:** the reusable workflow declares only reading the repository and its Actions data and writing pull request comments, which a caller can narrow but not widen. Its checkout does not keep the token, and the report never writes the token to its output.
+- **Held by:** `cost-reporting`: "The token never reaches the output"; `add-pr-cost-calculator` task 4.3
+
+### T25. The report overwrites someone else's comment
+
+- **Kind:** tampering
+- **Impact:** medium
+- **What could happen:** the report finds its earlier comment by a hidden marker, and anyone can paste that marker into a comment of their own.
+- **Answer:** the report updates only a comment that its own identity wrote.
+- **Residual:** other workflows in the same repository that use `GITHUB_TOKEN` comment under the same identity, and could edit the report's comment after it is posted. A pull request that adds or changes a workflow has that flagged in its own comment (T21).
+- **Held by:** `cost-reporting`: "A planted marker does not redirect the update"; `cost-reporting`: "A changed report is flagged"
+
+## Boundary 5: comment to readers
+
+### T26. The comment carries text someone else wrote
+
+- **Kind:** spoofing, tampering
+- **Impact:** medium
+- **What could happen:** model names, runner labels, file names, branch names and job names come from data that contributors control. Echoed into a Markdown comment, they could carry links, images that track who reads them, @-mentions that notify people, or text that looks like the report's own.
+- **Answer:** the comment holds numbers, its own fixed text, and names that match the strict pattern, shown as code. Nothing else from the ledger, the pull request or the jobs API reaches it.
+- **Held by:** `cost-reporting`: "A name with markup is not shown as written"; `cost-reporting`: "Refused ledger lines are counted, not shown"
+
+### T27. The comment claims more than the estimate supports
+
+- **Kind:** repudiation
+- **Impact:** low
+- **What could happen:** a reader takes the figure as a bill, or cannot tell how it was reached.
+- **Answer:** the comment says it is an API-equivalent estimate and not a bill, and names the price table's date and the tool's version, so anyone can recompute it from the ledger.
+- **Held by:** `cost-reporting`: "The comment says what the figure is"
+
+## Boundary 6: tool to adopters
+
+### T28. A compromised version of the tool reaches adopters
+
+- **Kind:** elevation of privilege
+- **Impact:** high
+- **What could happen:** a malicious change to this repository, or to something it depends on, runs on adopters' machines through the hook and in their CI through the workflow. The hook is a file that adopters copy, so how it reaches them is part of this.
+- **Answer:** the tool has no runtime dependencies beyond Python's standard library. The hook is one file that imports nothing else, which an adopter copies from a release tag and checks against the checksum the README gives for it; after that, it changes in their repository only through their own review. The actions the tool's workflows use are pinned to commits, and the README's calling workflow pins the tool to a full commit, not a branch. Changes reach `main` only through pull requests that pass CI, and the owner merges them. Development tools are pinned to exact versions, with their own dependencies locked and hashed, and Renovate proposes an update only after a release has been out for 14 days.
+- **Held by:** `usage-capture`: "The capture step runs alone in isolated mode"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` decision 2; `add-pr-cost-calculator` task 1.8; `add-pr-cost-calculator` task 4.4; `tests/test_repository.py`; `renovate.json`
+
+### T29. An adopter's workflow calls the report unsafely
+
+- **Kind:** elevation of privilege
+- **Impact:** high
+- **What could happen:** a reusable workflow runs with its caller's event and token. An adopter could call the report from a `pull_request_target` workflow, grant it every permission, or pass it every secret with `secrets: inherit`.
+- **Answer:** the report refuses every event but a push to the default branch, declares the permissions it needs, and asks for no secret. The README's calling workflow grants those permissions only and passes no secrets, and a test holds that snippet.
+- **Held by:** `cost-reporting`: "Another event is refused"; `cost-reporting`: "No secret is configured"; `add-pr-cost-calculator` task 4.3; `add-pr-cost-calculator` task 4.4
+
+### T30. A price is changed to misreport
+
+- **Kind:** tampering
+- **Impact:** medium
+- **What could happen:** a pull request changes a price so that reports come out lower or higher.
+- **Answer:** the price table ships with the pinned tool, so changing it in an adopting repository means pinning a different tool, which T21 covers. In this repository, each price row names its source page, and a test fails when a pull request changes or removes an existing row, or adds one dated on or before the newest row for the same price, which would change what earlier usage costs.
+- **Held by:** `add-pr-cost-calculator` task 3.1; `cost-reporting`: "A changed report is flagged"
+
+### T31. An adopter publishes more than they expect
+
+- **Kind:** information disclosure
+- **Impact:** low
+- **What could happen:** in a public repository, the ledger and the comment are public: which models were used, how many tokens, on which days, and the cost.
+- **Answer:** the README says so where it explains how to turn the tool on and how each person opts in.
+- **Held by:** `add-pr-cost-calculator` task 4.4
+
+## Boundary 7: contributors to this repository
+
+### T32. Private data enters this public repository
+
+- **Kind:** information disclosure
+- **Impact:** high
+- **What could happen:** real usage records, transcripts, session ids or private names reach a tracked file, a fixture, a commit message or the repository's history.
+- **Answer:** tests use synthetic fixtures only, a test fails on the private references it knows in tracked files, and task 1.9 extends that check to the messages and files of every commit a pull request adds.
+- **Residual:** a reference the test does not know. `CLAUDE.md` makes it the author's responsibility.
+- **Held by:** `tests/test_repository.py`; `add-pr-cost-calculator` task 1.9; `CLAUDE.md`
+
+### T33. Text in the repository steers an agent
+
+- **Kind:** elevation of privilege
+- **Impact:** medium
+- **What could happen:** agents building this tool read fixtures, price tables, issues and pull request comments that anyone can write. Text there that reads as an instruction could redirect them, which is called prompt injection.
+- **Answer:** `CLAUDE.md` says that data files describe and never instruct, and that anything meant to steer an agent lives only in `CLAUDE.md`, `.claude/` or a workflow, which change only through the owner's merge. Fixtures that carry hostile text on purpose are named for it.
+- **Residual:** no test can tell an instruction from a description, so this rests on the rule.
+- **Held by:** `CLAUDE.md`
+
+### T34. A session on a contributor's branch runs that branch's instructions
+
+- **Kind:** elevation of privilege
+- **Impact:** high
+- **What could happen:** a session started on an unmerged branch, for example to review an outside contributor's pull request, loads that branch's `CLAUDE.md`, skills and session hooks. The hooks run with the session's credentials, which can push to this repository.
+- **Answer:** `CLAUDE.md` says to review a pull request from `main`, reading its diff as data, and never to start a session on, or check out, an unmerged branch that someone outside the project wrote.
+- **Residual:** this rests on the rule.
+- **Held by:** `CLAUDE.md`
+
+### T35. A vendored or generated skill changes what agents do
+
+- **Kind:** elevation of privilege
+- **Impact:** medium
+- **What could happen:** Superpowers' skills and OpenSpec's generated skills are loaded into the context of agents working here, so a changed skill changes their behaviour. A fetch by commit id takes any commit upstream serves, including those of its open pull requests, so a lock could pin code that no release contains.
+- **Answer:** both are pinned. The vendored copy must match the pinned upstream commit, that commit must be the one the lock's release tag names, and the upstream repository itself is pinned. The generated skills must match what the pinned OpenSpec writes. CI fails on any difference, and a new version arrives only as a pull request that the owner reviews.
+- **Held by:** `scripts/sync-superpowers.sh`; `tests/test_vendor_sync.py`; `vendor/superpowers/UPSTREAM.lock`; `tests/test_repository.py`; `scripts/verify-openspec.sh`
+
+### T36. A development tool reports how it is used
+
+- **Kind:** information disclosure
+- **Impact:** low
+- **What could happen:** OpenSpec collects anonymous usage statistics unless told not to, and Superpowers has its own switch.
+- **Answer:** sessions working here turn both off through `.claude/settings.json`, and the OpenSpec check turns them off in CI. A test holds the settings.
+- **Held by:** `.claude/settings.json`; `scripts/verify-openspec.sh`; `tests/test_repository.py`
+
+### T37. A contributor's pull request misuses CI
+
+- **Kind:** elevation of privilege, denial of service
+- **Impact:** low
+- **What could happen:** a pull request from a fork runs this repository's CI with code its author chose.
+- **Answer:** GitHub gives such runs a read-only token and no secrets, and this CI declares a read-only token and holds no secrets. The owner can also make GitHub wait for approval before an outside contributor's workflows run (see below).
+- **Held by:** `.github/workflows/ci.yml`; `tests/test_repository.py`
+
+## Assumptions
+
+- GitHub enforces the permissions a workflow declares, gives runs from forks a read-only token, and gives a reusable workflow its caller's event, as its documentation says.
+- Claude Code's hooks behave as its documentation describes. This model relies on what it says about exit codes, standard output and standard error for stop, pre-tool-use and post-tool-use hooks, and about the `if` condition on tool events.
+- Claude Code does not let a project's settings set `HOME` or the `XDG_*` variables, as its documentation says.
+- Claude Code's transcripts name each line's working directory, the session's own, and write a call's usage on its lines, the final usage on a line that gives its stop reason wherever such a line is written, as observed when this model was written. A call whose line gives no working directory is not recorded.
+- The machine running a session belongs to the person running it. The capture step does not defend against a compromised machine.
+- A repository opened in Claude Code can already run any hook its own settings register, including one that changes a person's git configuration. The capture step adds no trust beyond that.
+
+## Settings for the owner
+
+- **Approval for running fork pull request workflows from contributors**, under the repository's Actions settings: *Require approval for all external contributors* is the strictest choice. GitHub warns that the first-time contributor options can be met by getting one harmless change merged.
+- **The ruleset on `main`** requires a pull request and the `ci` check, so nothing reaches the default branch without both.

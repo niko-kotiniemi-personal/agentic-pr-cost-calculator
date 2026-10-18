@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**"
+  ],
+  "minimumReleaseAgeBehaviour": "timestamp-optional",
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "minimumReleaseAge": null
+  },
+  "packageRules": [
+    {
+      "description": "Wait 14 days after a release before proposing it, for every update Renovate can date. Set here because a matching package rule overrides the top-level setting. Vulnerability fixes skip the wait.",
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "minimumReleaseAge": "14 days"
+    },
+    {
+      "description": "Pinning a version already in use is not an upgrade, so it is not delayed.",
+      "matchUpdateTypes": [
+        "pin",
+        "pinDigest"
+      ],
+      "minimumReleaseAge": null
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "vendor/superpowers is a pinned copy of an upstream release. This moves sha= and tag= together across releases; CI re-syncs the tree from sha= and fails on any difference, so a bump also needs scripts/sync-superpowers.sh run on its branch. ignorePaths above restates the preset's list without **/vendor/** so that this file is read.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^vendor/superpowers/UPSTREAM\\.lock$/"
+      ],
+      "matchStrings": [
+        "repo=(?<depName>[^\\s]+)\\s+sha=(?<currentDigest>[a-f0-9]{40})\\s+tag=(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "github-tags"
+    }
+  ]
+}

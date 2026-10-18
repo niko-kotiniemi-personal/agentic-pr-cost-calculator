@@ -1,0 +1,15 @@
+# Superpowers, vendored. Renovate moves `sha=` and `tag=` together; nothing else
+# in this directory may be edited by hand.
+#
+# Why vendored: a plugin that only .claude/settings.json enables from an external
+# source does not install itself in a fresh session. A copy in the repository is a
+# local source, so the session loads it with no install step.
+#
+# scripts/sync-superpowers.sh re-materialises the tree from `sha` and CI runs it
+# with --check, so a hand edit is a red build. This file is the one exception: it
+# is written here, not upstream, and the check excludes it by name.
+repo=obra/superpowers
+sha=b36e0829c6d0140e93cfef2ca599b1b07d4a7797
+tag=v6.3.0
+vendored_paths=.claude-plugin,skills,hooks/run-hook.cmd,hooks/session-start,LICENSE
+vendored_at=2026-10-17

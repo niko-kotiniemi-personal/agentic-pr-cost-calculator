@@ -1,0 +1,27 @@
+[project]
+name = "agentic-pr-cost-calculator"
+version = "0.0.0"
+description = "Estimate what an agentic coding pull request cost in model tokens and CI minutes."
+license = "MIT"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# Vendored files are upstream's and are never edited here.
+extend-exclude = ["vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.mypy]
+strict = true
+files = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["yaml"]
+ignore_missing_imports = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
