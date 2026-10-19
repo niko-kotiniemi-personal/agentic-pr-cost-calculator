@@ -150,7 +150,7 @@ This repository SHALL be the one that holds the project directory that Claude Co
 
 #### Scenario: A worktree of this repository is this repository
 
-- **WHEN** a session made calls while its working directory was in a worktree of this repository, whether inside the repository's own folder, as Claude Code's worktrees are, or outside it
+- **WHEN** a session made calls while its working directory was in a worktree of this repository, whether inside the repository's own folder, as Claude Code's worktrees are, or outside it, and no ledger file that the step wrote was in a stash
 - **THEN** those calls are recorded, and only a commit made in that worktree carries them
 
 #### Scenario: A run from another directory works on this repository
@@ -241,12 +241,12 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 
 #### Scenario: Calls go to the worktree and branch they were recorded on
 
-- **WHEN** calls were recorded in a worktree while one branch was checked out there, and the agent then commits in another worktree, or commits in that worktree on another branch that was checked out while no ledger file that the step wrote was still staged or stranded there
+- **WHEN** calls were recorded in a worktree while one branch was checked out there, and the agent then commits in another worktree, or in that worktree on another branch, and in the meantime no ledger file that the step wrote was in a stash, nor still staged or stranded when another branch was checked out there
 - **THEN** that commit carries none of those calls
 
 #### Scenario: A call made before a checkout stays with its branch
 
-- **WHEN** the agent makes calls with one branch checked out, then runs `git checkout` to another branch while no ledger file that the step wrote is still staged, or stranded in the working tree, and commits on that branch, in the same turn
+- **WHEN** the agent makes calls with one branch checked out, then runs `git checkout` to another branch while no ledger file that the step wrote is still staged, stranded or in a stash, and commits on that branch, in the same turn
 - **THEN** the commit on the other branch carries none of the calls that the transcript held as over before the checkout ran
 
 #### Scenario: Calls made with no branch checked out wait for a commit made the same way
@@ -330,7 +330,7 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 
 #### Scenario: Moving the ledger folder before a commit takes no ledger file
 
-- **WHEN** the agent runs `git mv .pr-cost old && git commit -m x` on a branch that holds ledger files, with calls waiting to be staged
+- **WHEN** the agent runs `git mv .pr-cost old && git commit -m x`, `git -C .pr-cost mv ledger ../old && git commit -m x`, or `git -C "$P" mv ledger ../old && git commit -m x`, where that variable holds `.pr-cost`, on a branch that holds ledger files, with calls waiting to be staged
 - **THEN** no ledger file is staged, and the command moves the folder and commits, as it would without the tool
 
 #### Scenario: Removing ledger files by a pattern before a commit takes no ledger file
@@ -355,7 +355,7 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 
 #### Scenario: A `-C` after `commit` is not a path
 
-- **WHEN** the agent runs `git commit -C HEAD` alone, with changes staged and calls waiting to be staged
+- **WHEN** the agent runs `git commit -C HEAD` alone, on a branch that has a commit, with changes staged and calls waiting to be staged
 - **THEN** that commit carries a ledger file
 
 #### Scenario: A commit in another repository stages nothing here
@@ -405,7 +405,7 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 
 ### Requirement: A ledger file that no commit takes is taken back
 
-A commit holds a ledger file when the commit checked out in the worktree where the file was staged holds it. When the result of the command that the file was staged for returns, whether the command succeeded or failed, the run after that command SHALL take the file back, from the index and the working tree, unless a commit holds it, and its calls SHALL wait for a later commit. A command that gets no such run, because it was refused, blocked by another hook, cancelled or interrupted, SHALL have its file taken back the same way by any later run of the step in the repository, in that session or another, that finds the command over: by its result in a transcript, by a later call of the agent that ran it, by that agent having stopped, or by its session having ended. A take-back SHALL NOT remove a file that a commit holds, and SHALL leave the file for a later run while another git command holds the index of that worktree. A commit can still take a file that a take-back removes, as a commit that is still running can while the step takes the file back. So the step SHALL note, for each file it takes back from the index, the commit that it found checked out in that worktree, not holding the file, before it removed it, and the first later run there that finds another commit checked out and the index free SHALL put the file back into the index and the working tree, as that commit holds it, when that commit holds it and the index lacks it, and SHALL then forget the file, whether it put it back or not. The step SHALL put back no other file. Once a run finds a commit holding a ledger file that the step staged, the step SHALL note the file's calls as taken in that run's clone, and SHALL NOT stage them again there while that note stands, even after a later commit or a change of the branch's history removes the file, so that a ledger file that anyone else removes from the index and the working tree once a run has found a commit holding it stays removed, with its calls. A ledger file is stranded when the step has noted its calls as taken, and the working tree where it was staged holds it, with the content that the step staged, while neither the index nor the commit checked out there holds it, as after a mixed `git reset`, or a `git rm --cached` and a commit. The first run that finds a stranded file SHALL take it back, from the working tree, and SHALL then drop the note that its calls are taken, so that the file does not stay where a later `git add` would commit it on another branch, and its calls are staged again, in a new file, for the next commit on the branch that they were recorded on. A fresh clone at the same path holds no note, so in a session resumed there, the step stages again the calls of a file that its branch no longer holds.
+A commit holds a ledger file in a worktree when the commit checked out there holds it. When the result of the command that the file was staged for returns, whether the command succeeded or failed, the run after that command SHALL take the file back, from the index and the working tree of the worktree where it was staged, unless a commit holds it there, and its calls SHALL wait for a later commit. A command that gets no such run, because it was refused, blocked by another hook, cancelled or interrupted, SHALL have its file taken back the same way by any later run of the step in the repository, in that session or another, that finds the command over: by its result in a transcript, by a later call of the agent that ran it, by that agent having stopped, or by its session having ended. A take-back, from whichever worktree, SHALL NOT remove a file that a commit holds there, and SHALL leave the file for a later run while another git command holds that worktree's index. Once a run finds a commit holding a ledger file that the step staged, the step SHALL note the file's calls as taken in that run's clone, and SHALL never stage them again there, whatever later removes the file from the branch, the index or the working tree, so that a ledger file that anyone removes once a run has found a commit holding it takes its calls with it, even when the changes of that commit are committed again. A ledger file is stranded when the step has noted its calls as taken, and the working tree of any worktree of the repository holds it, at its path and with the content that the step staged, while no commit holds it there, and the index there has no entry for it or only an intent-to-add entry, as after a mixed `git reset`, with or without `-N`, or a `git rm --cached` and a commit, in the worktree where it was staged, or after a `git stash -u` there and a pop in another worktree. The first run that finds a stranded file SHALL take it back, from the index and the working tree where it is, and its calls SHALL stay noted as taken, so that the file does not stay where a later `git add` would commit it, with its calls, on whatever branch is checked out there. A commit can still take a file that a take-back removes, as a commit that is still running can while the step takes the file back, whether the take-back finds the file in the index or, after another command has removed it from the index, only in the working tree. So the step SHALL note, for each file it takes back, the commit that it found checked out in that worktree, not holding the file, before it removed it, and the first later run there that finds another commit checked out and the index free SHALL put the file back, as that commit holds it, wherever the index or the working tree lacks it, when that commit holds it, and SHALL then forget the file, whether it put it back or not. The step SHALL put back no other file. A fresh clone at the same path holds no note, so a session resumed there can stage again the calls of a file that its branch no longer holds.
 
 #### Scenario: A commit that does not happen leaves nothing staged
 
@@ -444,23 +444,28 @@ A commit holds a ledger file when the commit checked out in the worktree where t
 
 #### Scenario: A ledger file that a person removes stays removed
 
-- **WHEN** a run of the step has found a commit holding a ledger file that the step staged, and the person then removes that file with `git rm`, or with `git reset --hard` to a commit before the one that holds it, and the session goes on in that run's clone
+- **WHEN** a run of the step has found a commit holding a ledger file that the step staged, and the person then removes that file with `git rm`, with or without `--cached`, or with `git reset`, mixed or `--hard`, to a commit before the one that holds it, and the session goes on in that run's clone, where no commit that holds the file is checked out again
 - **THEN** no run of the step puts the file back, and no ledger file that the step stages there later holds its calls
 
 #### Scenario: A fresh clone stages a removed ledger file's calls again
 
-- **WHEN** a run of the step has found a commit holding a ledger file that the step staged, the person then removes that file with `git rm`, commits and pushes, and the session is then resumed in a fresh clone of that branch, at the same path
+- **WHEN** a run of the step has found a commit holding a ledger file that the step staged, whose calls were made with the repository root as their working directory, the person then removes that file with `git rm`, commits and pushes, and the session is then resumed in a fresh clone of that branch, at the same path
 - **THEN** the agent's next commit there carries the calls that the removed file held
 
-#### Scenario: A stranded ledger file has its calls staged again
+#### Scenario: A stranded ledger file is taken back
 
-- **WHEN** the agent's commit took a ledger file that the step staged, a run of the step has found that commit checked out, and then, with that commit still checked out, the agent runs `git reset HEAD~1` alone, or the person runs `git rm --cached` of that file and commits, while no other git command holds the index
-- **THEN** after the step's next run, that file is not in the working tree, and the agent's next commit on that branch adds a ledger file holding its calls
+- **WHEN** the agent's commit took a ledger file that the step staged, a run of the step has found that commit checked out, and then, with that commit still checked out, the agent runs `git reset HEAD~1` or `git reset -N HEAD~1` alone, or the person removes that file from the index with `git rm --cached` and commits, and the step's next run comes before any other git command
+- **THEN** after that run, that file is in neither the working tree nor the index, and no ledger file that the step stages later in that clone holds its calls
 
 #### Scenario: A stranded ledger file does not follow a checkout
 
 - **WHEN** the agent's commit on one branch took a ledger file that the step staged, a run of the step has found that commit checked out, and then, with that commit still checked out, the agent runs `git reset HEAD~1` alone, and then `git checkout` to another branch, `git add -A` and `git commit`, while no other git command holds the index
-- **THEN** the commit on the other branch holds none of the calls that the first commit's ledger file held, and the agent's next commit on the first branch carries them
+- **THEN** the commit on the other branch holds none of the calls that the first commit's ledger file held
+
+#### Scenario: A stranded ledger file is taken back from another worktree
+
+- **WHEN** the agent's commit in one worktree took a ledger file that the step staged, a run of the step has found that commit checked out, and then the agent runs `git reset HEAD~1 && git stash -u` there, `git stash pop` alone in another worktree of the repository, and then `git add -A` and `git commit` in that other worktree, while no other git command holds an index
+- **THEN** that commit holds none of the calls that the first commit's ledger file held
 
 ### Requirement: A ledger file is written once
 
