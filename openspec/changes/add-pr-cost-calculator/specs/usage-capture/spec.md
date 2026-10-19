@@ -247,7 +247,7 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 #### Scenario: A call made before a checkout stays with its branch
 
 - **WHEN** the agent makes calls with one branch checked out, then runs `git checkout` to another branch and commits on that branch, in the same turn, and until that commit no stash holds any of those calls, and no file holds any of them in the index or the working tree but the ledger files of the commit checked out there
-- **THEN** the commit on the other branch carries none of the calls that the transcript held as over before the checkout ran
+- **THEN** the commit on the other branch carries none of those calls that the transcript held as over before the checkout ran
 
 #### Scenario: Calls made with no branch checked out wait for a commit made the same way
 
@@ -449,7 +449,7 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A ledger file that a person removes stays removed
 
-- **WHEN** a run of the step has found a commit holding a ledger file that the step staged, no take-back of that file raced that commit, and the person then removes that file with `git rm`, with or without `--cached`, or with `git reset`, mixed or `--hard`, to a commit before the one that holds it, and the session goes on in that run's clone
+- **WHEN** a run of the step has found the commit checked out in a worktree holding a ledger file that the step staged, while no other git command held that worktree's index, and the person then removes that file there with `git rm`, with or without `--cached`, or with `git reset`, mixed or `--hard`, to a commit before the one that holds it, and the session goes on in that run's clone
 - **THEN** no run of the step puts the file back, and no ledger file that the step stages there later holds its calls
 
 #### Scenario: A fresh clone stages a removed ledger file's calls again
@@ -459,7 +459,7 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A ledger file that a removal leaves is left to git
 
-- **WHEN** the agent's commit took a ledger file that the step staged, that commit has a parent, a run of the step has found that commit checked out, and then, with that commit still checked out, the agent runs `git reset HEAD~1` or `git reset -N HEAD~1` alone, or the person removes that file from the index with `git rm --cached` and commits, and the step's next run comes before any other git command
+- **WHEN** the agent's commit took a ledger file that the step staged, that commit has a parent, a run of the step has found that commit checked out, and then, with that commit still checked out and that file in the working tree, the agent runs `git reset HEAD~1` or `git reset -N HEAD~1` alone, or the person removes that file from the index with `git rm --cached` and commits, and the step's next run comes before any other git command
 - **THEN** after that run, the working tree still holds that file, the index still has no entry for it, or only the intent-to-add entry that `git reset -N` leaves, and no ledger file that the step stages later in that clone holds its calls
 
 #### Scenario: A squash with a plain reset keeps its ledger files
@@ -471,6 +471,11 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 - **WHEN** the agent runs `git commit && git reset HEAD~1` alone, for a commit that has a parent and for which the step staged a ledger file, and then, with that commit's parent still checked out, runs a mixed `git reset` alone, back to that commit, while no other git command holds the index
 - **THEN** after the run that follows that reset, the index and the working tree hold the file as that commit does, and the agent's next commit carries none of its calls
+
+#### Scenario: A soft reset back to a commit that its own command reset away leaves its ledger file out
+
+- **WHEN** the agent runs `git commit && git reset HEAD~1` alone, for a commit that has a parent and for which the step staged a ledger file, and then, with that commit's parent still checked out, runs `git reset --soft` alone, back to that commit, while no other git command holds the index
+- **THEN** after the run that follows that reset, neither the index nor the working tree holds the file, and no ledger file that the step stages there later holds its calls
 
 #### Scenario: A put-back does not undo a staged removal
 
