@@ -226,8 +226,8 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 
 #### Scenario: A one-turn session's commit carries its calls
 
-- **WHEN** the agent makes model calls in one worktree and then runs `git commit -m x` alone in that worktree, with changes staged, in the same turn and with no change of branch there in between, and the transcript holds at least one of those calls as over when that commit's run reads it
-- **THEN** that commit adds a ledger file holding the calls that the transcript held as over by then
+- **WHEN** in a session's first turn, the agent makes model calls in one worktree and then makes its first commit there, by running `git commit -m x` alone with changes staged, with no change of branch there in between, and the transcript holds at least one of those calls as over when that commit's run reads it
+- **THEN** that commit adds a ledger file holding each of those calls that the transcript held as over by then
 
 #### Scenario: A turn's end leaves the working tree alone
 
@@ -410,12 +410,12 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 #### Scenario: A commit that does not happen leaves nothing staged
 
 - **WHEN** the step has staged a ledger file for a `git commit` that then fails
-- **THEN** once that command has ended, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch carries its calls
+- **THEN** once that command has ended, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch, in the worktree where the file was staged, carries its calls
 
 #### Scenario: A refused commit leaves nothing staged
 
 - **WHEN** the step has staged a ledger file for a `git commit` that is then refused at a permission prompt or by a permission rule, blocked by another hook, or cancelled, the transcript then holds that command's result, no commit has taken the file, and no other git command holds the index at the step's next run
-- **THEN** after that run, the ledger file is neither staged nor in the working tree, and a later commit on that branch carries its calls
+- **THEN** after that run, the ledger file is neither staged nor in the working tree, and a later commit on that branch, in the worktree where the file was staged, carries its calls
 
 #### Scenario: A session's end takes back what its commands left staged
 
