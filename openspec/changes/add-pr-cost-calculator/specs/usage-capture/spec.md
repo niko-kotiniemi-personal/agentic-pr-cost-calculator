@@ -2,7 +2,7 @@
 
 Record what an agent session spends on model calls in this repository, as it works, and carry it to the pull request with the agent's own commits, in a form the pull request's CI can read at merge without any external service.
 
-In the scenarios below, a commit that is expected to carry a ledger file is made where git's attributes give the ledger path no filter and no working-tree encoding, git does not refuse to add the file, and no git hook of the repository refuses it, and a commit that a scenario does not spell out, such as the agent's next commit, is one that the step stages for, unless the scenario says otherwise. In them, each run of the step reads the transcripts to their end within its time budget, unless the scenario says otherwise.
+In the scenarios below, a commit that is expected to carry a ledger file is made where git's attributes give the ledger path no filter and no working-tree encoding, git does not refuse to add the file, and no git hook of the repository refuses it, and a commit that a scenario does not spell out, such as the agent's next commit, is one that the step stages for, unless the scenario says otherwise. In them, each run of the step reads the transcripts to their end within its time budget, and no other session commits in the repository, unless the scenario says otherwise.
 
 ## ADDED Requirements
 
@@ -409,13 +409,13 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A commit that does not happen leaves nothing staged
 
-- **WHEN** the step has staged a ledger file for a `git commit` that then fails
-- **THEN** once that command has ended, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch, in the worktree where the file was staged, carries its calls
+- **WHEN** the step has staged a ledger file for a `git commit` that then fails, and no other git command holds the index at the step's next run
+- **THEN** once that command has ended, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch in the worktree where the file was staged carries its calls
 
 #### Scenario: A refused commit leaves nothing staged
 
 - **WHEN** the step has staged a ledger file for a `git commit` that is then refused at a permission prompt or by a permission rule, blocked by another hook, or cancelled, the transcript then holds that command's result, no commit has taken the file, and no other git command holds the index at the step's next run
-- **THEN** after that run, the ledger file is neither staged nor in the working tree, and a later commit on that branch, in the worktree where the file was staged, carries its calls
+- **THEN** after that run, the ledger file is neither staged nor in the working tree, and a later commit on that branch in the worktree where the file was staged carries its calls
 
 #### Scenario: A session's end takes back what its commands left staged
 
@@ -440,7 +440,7 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 #### Scenario: A file that a later commit deleted is not put back
 
 - **WHEN** a take-back removes a ledger file while a commit that takes it is still running, the person then makes another commit on that branch in that worktree that does not hold the file, before any run of the step finds the first commit checked out there, and that other commit stays checked out there until the agent's next commit
-- **THEN** no run of the step puts the file back, and the agent's next commit on that branch carries its calls
+- **THEN** no run of the step puts the file back, and the agent's next commit on that branch in that worktree carries its calls
 
 #### Scenario: A file removed from the index while its commit runs stays removed
 
