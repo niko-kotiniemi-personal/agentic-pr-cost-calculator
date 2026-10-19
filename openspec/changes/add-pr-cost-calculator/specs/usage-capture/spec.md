@@ -222,11 +222,11 @@ Each entry SHALL carry one activity type derived from the tools the model call i
 
 ### Requirement: Usage reaches the pull request with the agent's commits
 
-Capture SHALL run when Claude finishes responding, when a subagent finishes, when a turn ends in an API error, when the session ends, and before and after each of the agent's Bash commands that the hook's condition `Bash(git *)` matches. Every run SHALL record the calls that the transcript holds as over, so that a call that is over before such a command runs is recorded with the branch it was made on, before that command can change the branch. A call SHALL go only into a ledger file staged in the worktree that git itself finds from its line's working directory, which for a directory in a worktree inside the repository's folder is that worktree and not the main checkout around it, for a commit on the branch that was checked out there when the call was recorded. Calls recorded while no branch was checked out SHALL go only to a commit made while no branch is checked out, in the same worktree. Apart from staging a ledger file, taking it back and putting it back, as the next two requirements say, the step SHALL keep what it records inside the repository's common git directory, and SHALL NOT change the working tree or the index.
+Capture SHALL run when Claude finishes responding, when a subagent finishes, when a turn ends in an API error, when the session ends, and before and after each of the agent's Bash commands that the hook's condition `Bash(git *)` matches. Every run SHALL record the calls that the transcript holds as over, up to its time budget, so that a call that is over before such a command runs is recorded with the branch it was made on, before that command can change the branch, unless the run before that command reaches its time budget before it reads that call. A call SHALL go only into a ledger file staged in the worktree that git itself finds from its line's working directory, which for a directory in a worktree inside the repository's folder is that worktree and not the main checkout around it, for a commit on the branch that was checked out there when the call was recorded. Calls recorded while no branch was checked out SHALL go only to a commit made while no branch is checked out, in the same worktree. Apart from staging a ledger file, taking it back and putting it back, as the next two requirements say, the step SHALL keep what it records inside the repository's common git directory, and SHALL NOT change the working tree or the index.
 
 #### Scenario: A one-turn session's commit carries its calls
 
-- **WHEN** the agent makes model calls and then runs `git commit -m x` alone, with changes staged, in the same turn, and the transcript holds at least one of those calls as over when that commit's run reads it
+- **WHEN** the agent makes model calls and then runs `git commit -m x` alone, with changes staged, in the same turn, and the transcript holds at least one of those calls as over when that commit's run reads it, and that run reads it to the end within its time budget
 - **THEN** that commit adds a ledger file holding the calls that the transcript held as over by then
 
 #### Scenario: A turn's end leaves the working tree alone
@@ -236,7 +236,7 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 
 #### Scenario: A turn that ends in an API error is still recorded
 
-- **WHEN** a turn ends in an API error
+- **WHEN** a turn ends in an API error, and each run of the step from then until the agent's next commit reads the transcript to the end within its time budget
 - **THEN** its calls are carried by the agent's next commit
 
 #### Scenario: Calls go to the worktree and branch they were recorded on
@@ -247,7 +247,7 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 #### Scenario: A call made before a checkout stays with its branch
 
 - **WHEN** the agent makes calls with one branch checked out, then runs `git checkout` to another branch and commits on that branch, in the same turn, and until that commit no stash holds any of those calls, and no file holds any of them in the index or the working tree but the ledger files of the commit checked out there
-- **THEN** the commit on the other branch carries none of those calls that the transcript held as over when the last run of the step before the checkout read it
+- **THEN** the commit on the other branch carries none of those calls that a run of the step recorded before the checkout ran
 
 #### Scenario: Calls made with no branch checked out wait for a commit made the same way
 
@@ -474,7 +474,7 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A soft reset back to a commit that its own command reset away leaves its ledger file out
 
-- **WHEN** the agent runs `git commit && git reset HEAD~1` alone, for a commit that has a parent and for which the step staged a ledger file, a run of the step then takes that file back, and next, with that commit's parent still checked out and nothing having put the file in the index or the working tree since, the agent runs `git reset --soft` alone, back to that commit, while no other git command holds the index
+- **WHEN** the agent runs `git commit && git reset HEAD~1` alone, for a commit that has a parent and for which the step staged a ledger file, a run of the step then takes that file back from the working tree alone, and next, with that commit's parent still checked out and nothing having put the file in the index or the working tree since, the agent runs `git reset --soft` alone, back to that commit, while no other git command holds the index
 - **THEN** after the run that follows that reset, neither the index nor the working tree holds the file, and no ledger file that the step stages there later holds its calls
 
 #### Scenario: A put-back does not undo a staged removal
