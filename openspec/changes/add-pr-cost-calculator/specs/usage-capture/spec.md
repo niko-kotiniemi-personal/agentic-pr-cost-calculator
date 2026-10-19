@@ -414,7 +414,7 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A commit that does not happen leaves nothing staged
 
-- **WHEN** the step has staged a ledger file for a `git commit` that then fails, and no other git command holds the index when the run after that command runs
+- **WHEN** the step has staged a ledger file for a `git commit` that then fails, no commit has taken the file, and no other git command holds the index when the run after that command runs
 - **THEN** after that run, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch in the worktree where the file was staged carries its calls
 
 #### Scenario: A refused commit leaves nothing staged
@@ -459,8 +459,8 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A ledger file that a person removes stays removed for another session
 
-- **WHEN** a run of the step has found the commit checked out in a worktree holding a ledger file that the step staged, while no other git command held that worktree's index, the person then removes that file there with `git rm` and commits, and another session then commits there, with no change of branch there in between
-- **THEN** that session's commit carries none of the calls that the removed file held
+- **WHEN** a run of the step has found the commit checked out in a worktree holding a ledger file that the step staged, while no other git command held that worktree's index, the person then removes that file there with `git rm` and commits, and another session then commits there, in that run's clone, with no change of branch there in between
+- **THEN** no ledger file that the step stages for that session's commit holds any of the calls that the removed file held
 
 #### Scenario: A fresh clone stages a removed ledger file's calls again
 
