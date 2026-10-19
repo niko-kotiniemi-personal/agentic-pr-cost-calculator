@@ -373,6 +373,11 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 - **WHEN** calls were recorded in one of the repository's worktrees, with the branch now checked out there, and the agent commits there, while the hook runs in the repository's main folder, or after a `cd` to that worktree's path, or with a `-C` before `commit` that names it, written out in the same command
 - **THEN** the ledger file is staged in that worktree, holding those calls, and the main folder's index is unchanged
 
+#### Scenario: A commit carries the calls that another session recorded on its branch
+
+- **WHEN** a run of the step for one session has recorded calls in a worktree while a branch was checked out there, no commit has taken them, and another session then commits there, with no change of branch there in between
+- **THEN** that commit carries those calls
+
 #### Scenario: A command's repeated run stages its calls once
 
 - **WHEN** the run before a `git commit` fires a second time for the same call, as when a call that another hook deferred is resumed, with the same branch checked out, and no commit has taken the file staged the first time
@@ -409,8 +414,8 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A commit that does not happen leaves nothing staged
 
-- **WHEN** the step has staged a ledger file for a `git commit` that then fails, and no other git command holds the index at the step's next run
-- **THEN** once that command has ended, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch in the worktree where the file was staged carries its calls
+- **WHEN** the step has staged a ledger file for a `git commit` that then fails, and no other git command holds the index when the run after that command runs
+- **THEN** after that run, the ledger file is neither staged nor in the working tree, and the agent's next commit on that branch in the worktree where the file was staged carries its calls
 
 #### Scenario: A refused commit leaves nothing staged
 
@@ -439,7 +444,7 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 #### Scenario: A file that a later commit deleted is not put back
 
-- **WHEN** a take-back removes a ledger file while a commit that takes it is still running, the person then makes another commit on that branch in that worktree that does not hold the file, before any run of the step finds the first commit checked out there, and that other commit stays checked out there until the agent's next commit
+- **WHEN** a take-back removes a ledger file while a commit that takes it is still running, the person then makes another commit on that branch in that worktree that does not hold the file, before any run of the step finds the first commit checked out there, and that other commit stays checked out there until the agent's next commit on that branch in that worktree
 - **THEN** no run of the step puts the file back, and the agent's next commit on that branch in that worktree carries its calls
 
 #### Scenario: A file removed from the index while its commit runs stays removed
@@ -451,6 +456,11 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 - **WHEN** a run of the step has found the commit checked out in a worktree holding a ledger file that the step staged, while no other git command held that worktree's index, and the person then removes that file there with `git rm`, with or without `--cached`, or with `git reset`, mixed or `--hard`, to a commit before the one that holds it, and the session goes on in that run's clone
 - **THEN** no run of the step puts the file back there, and no ledger file that the step stages there later holds its calls
+
+#### Scenario: A ledger file that a person removes stays removed for another session
+
+- **WHEN** a run of the step has found the commit checked out in a worktree holding a ledger file that the step staged, while no other git command held that worktree's index, the person then removes that file there with `git rm` and commits, and another session then commits there, with no change of branch there in between
+- **THEN** that session's commit carries none of the calls that the removed file held
 
 #### Scenario: A fresh clone stages a removed ledger file's calls again
 
