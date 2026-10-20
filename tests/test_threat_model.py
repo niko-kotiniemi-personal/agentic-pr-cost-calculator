@@ -5,6 +5,11 @@ in a spec, a task or a decision of a change, or a file in this repository. A
 citation that names nothing reads as a control while holding none, so every
 citation must resolve, and every threat must cite something or say why it is
 accepted.
+
+Every threat is also rated for impact and likelihood, from 1 to 3 each, and its
+risk is their product. The risk matrix places each threat in the cell its two
+ratings name, so a reader sees at a glance where the risk sits, and a rating
+changed in one place and not the other is reported.
 """
 
 from __future__ import annotations
@@ -18,7 +23,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 THREAT_MODEL = ROOT / "docs" / "threat-model.md"
 
-FIELDS = ("Kind", "Impact", "What could happen", "Answer", "Held by")
+FIELDS = ("Kind", "Impact", "Likelihood", "Risk", "What could happen", "Answer", "Held by")
 KINDS = {
     "spoofing",
     "tampering",
@@ -28,7 +33,8 @@ KINDS = {
     "elevation of privilege",
     "reliability",
 }
-IMPACTS = {"high", "medium", "low"}
+IMPACTS = {1: "low", 2: "medium", 3: "high"}
+LIKELIHOODS = {1: "unlikely", 2: "possible", 3: "likely"}
 
 HEADING = re.compile(r"^### (T(\d+))\. .+$", re.M)
 ANY_HEADING = re.compile(r"^#{1,3} ", re.M)
@@ -39,6 +45,10 @@ TASK_REF = re.compile(r"`([a-z0-9-]+)` task (\d+\.\d+)")
 DECISION_REF = re.compile(r"`([a-z0-9-]+)` decision (\d+)")
 PATH_REF = re.compile(r"`([^`\s]+)`")
 ARCHIVE_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}-")
+RATING = re.compile(r"([1-3]) \(([a-z]+)\)")
+MATRIX_HEADING = re.compile(r"^## Risk matrix$", re.M)
+MATRIX_ROW = re.compile(r"^\| ([1-3]) [a-z]+ \|(.*)\|\s*$", re.M)
+THREAT_ID = re.compile(r"T\d+")
 
 
 @dataclass(frozen=True)
@@ -131,8 +141,7 @@ def problems_in(text: str, root: Path) -> tuple[list[str], int]:
         unknown = [kind for kind in kinds if kind not in KINDS]
         if unknown:
             problems.append(f"{threat.ident} has a kind outside the list: {unknown}")
-        if threat.fields["Impact"][0] not in IMPACTS:
-            problems.append(f"{threat.ident} has an impact outside the list")
+        problems += rating_problems(threat)
         held = threat.fields["Held by"][0]
         if held.lower().startswith("accepted"):
             if not re.match(r"accepted: \S", held):
@@ -143,7 +152,61 @@ def problems_in(text: str, root: Path) -> tuple[list[str], int]:
         cited += count
         if count == 0:
             problems.append(f"{threat.ident} cites nothing and is not accepted")
+    problems += matrix_problems(text, threats)
     return problems, cited
+
+
+def rating(value: str, levels: dict[int, str]) -> int | None:
+    match = RATING.fullmatch(value)
+    if not match or levels.get(int(match.group(1))) != match.group(2):
+        return None
+    return int(match.group(1))
+
+
+def rating_problems(threat: Threat) -> list[str]:
+    impact = rating(threat.fields["Impact"][0], IMPACTS)
+    likelihood = rating(threat.fields["Likelihood"][0], LIKELIHOODS)
+    problems = []
+    if impact is None:
+        problems.append(f"{threat.ident} has an impact outside the list")
+    if likelihood is None:
+        problems.append(f"{threat.ident} has a likelihood outside the list")
+    if impact and likelihood and threat.fields["Risk"][0] != str(impact * likelihood):
+        problems.append(f"{threat.ident} has a risk that is not impact times likelihood")
+    return problems
+
+
+def matrix_problems(text: str, threats: list[Threat]) -> list[str]:
+    heading = MATRIX_HEADING.search(text)
+    if not heading:
+        return ["no risk matrix found"]
+    body = text[heading.end() :]
+    following = ANY_HEADING.search(body)
+    if following:
+        body = body[: following.start()]
+    placed: dict[str, list[tuple[int, int]]] = {}
+    rows = MATRIX_ROW.findall(body)
+    for impact, cells in rows:
+        columns = [cell.strip() for cell in cells.split("|")]
+        if len(columns) != len(LIKELIHOODS):
+            return [f"the risk matrix row for impact {impact} does not have three columns"]
+        for likelihood, cell in enumerate(columns, start=1):
+            for ident in THREAT_ID.findall(cell):
+                placed.setdefault(ident, []).append((int(impact), likelihood))
+    if sorted(int(impact) for impact, _ in rows) != sorted(IMPACTS):
+        return ["the risk matrix does not have one row for each impact"]
+    problems = []
+    for threat in threats:
+        expected = [
+            (
+                rating(threat.fields.get("Impact", [""])[0], IMPACTS) or 0,
+                rating(threat.fields.get("Likelihood", [""])[0], LIKELIHOODS) or 0,
+            )
+        ]
+        if placed.pop(threat.ident, []) != expected:
+            problems.append(f"{threat.ident} is not in the one risk matrix cell its ratings name")
+    problems += [f"the risk matrix names {ident}, which is not a threat" for ident in placed]
+    return problems
 
 
 def test_every_threat_cites_what_holds_its_answer() -> None:
@@ -165,11 +228,34 @@ def synthetic_repository(root: Path) -> None:
     (root / "docs" / "note.md").write_text("A file.\n")
 
 
-def threat(held: str, number: int = 1, kind: str = "tampering", impact: str = "low") -> str:
+MATRIX = (
+    "## Risk matrix\n\n"
+    "| Impact \\ Likelihood | 1 unlikely | 2 possible | 3 likely |\n"
+    "|---|---|---|---|\n"
+    "| 3 high | | | |\n"
+    "| 2 medium | | | |\n"
+    "| 1 low | {low} | | |\n"
+)
+
+
+def matrix(low: str = "T1") -> str:
+    return MATRIX.format(low=low)
+
+
+def threat(
+    held: str,
+    number: int = 1,
+    kind: str = "tampering",
+    impact: str = "1 (low)",
+    likelihood: str = "1 (unlikely)",
+    risk: str = "1",
+) -> str:
     return (
         f"### T{number}. Something goes wrong\n\n"
         f"- **Kind:** {kind}\n"
         f"- **Impact:** {impact}\n"
+        f"- **Likelihood:** {likelihood}\n"
+        f"- **Risk:** {risk}\n"
         "- **What could happen:** a thing.\n"
         "- **Answer:** another thing.\n"
         f"- **Held by:** {held}\n"
@@ -182,12 +268,13 @@ def test_citations_that_exist_resolve(tmp_path: Path) -> None:
         '`thing`: "It works"; `demo` task 1.1; `demo` task 1.2; `old` task 3.1; '
         "`demo` decision 1; `docs/note.md`"
     )
-    assert problems_in(threat(held), tmp_path) == ([], 6)
+    assert problems_in(threat(held) + matrix(), tmp_path) == ([], 6)
 
 
 def test_an_accepted_risk_with_its_reason_cites_nothing(tmp_path: Path) -> None:
     synthetic_repository(tmp_path)
-    assert problems_in(threat("accepted: the report is an estimate."), tmp_path) == ([], 0)
+    text = threat("accepted: the report is an estimate.") + matrix()
+    assert problems_in(text, tmp_path) == ([], 0)
 
 
 @pytest.mark.parametrize(
@@ -209,38 +296,111 @@ def test_a_citation_that_names_nothing_is_reported(
 ) -> None:
     synthetic_repository(tmp_path)
     (tmp_path.parent / "outside.md").write_text("Outside the repository.\n")
-    problems, _ = problems_in(threat(held), tmp_path)
+    problems, _ = problems_in(threat(held) + matrix(), tmp_path)
     assert [problem for problem in problems if expected in problem], problems
 
 
 def test_a_threat_without_its_fields_is_reported(tmp_path: Path) -> None:
     synthetic_repository(tmp_path)
-    text = threat("`docs/note.md`").replace("- **Answer:** another thing.\n", "")
+    text = threat("`docs/note.md`").replace("- **Answer:** another thing.\n", "") + matrix()
     problems, _ = problems_in(text, tmp_path)
     assert problems == ["T1 lacks ['Answer'] or repeats []"]
 
 
 def test_a_repeated_field_is_reported(tmp_path: Path) -> None:
     synthetic_repository(tmp_path)
-    text = threat("`docs/note.md`") + "- **Held by:** `docs/note.md`\n"
+    text = threat("`docs/note.md`") + "- **Held by:** `docs/note.md`\n" + matrix()
     problems, _ = problems_in(text, tmp_path)
     assert problems == ["T1 lacks [] or repeats ['Held by']"]
 
 
 def test_kinds_and_impacts_come_from_their_lists(tmp_path: Path) -> None:
     synthetic_repository(tmp_path)
-    text = threat("`docs/note.md`", kind="tampering, mischief", impact="huge")
+    text = threat("`docs/note.md`", kind="tampering, mischief", impact="huge") + matrix()
     problems, _ = problems_in(text, tmp_path)
     assert problems == [
         "T1 has a kind outside the list: ['mischief']",
         "T1 has an impact outside the list",
+        "T1 is not in the one risk matrix cell its ratings name",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("impact", "likelihood", "risk", "expected"),
+    [
+        ("3 (high)", "2 (possible)", "6", []),
+        ("2 (medium)", "3 (likely)", "6", []),
+        ("3 (medium)", "1 (unlikely)", "3", ["T1 has an impact outside the list"]),
+        ("high", "1 (unlikely)", "3", ["T1 has an impact outside the list"]),
+        ("1 (low)", "4 (certain)", "4", ["T1 has a likelihood outside the list"]),
+        ("1 (low)", "2 (likely)", "2", ["T1 has a likelihood outside the list"]),
+        ("2 (medium)", "2 (possible)", "2", ["T1 has a risk that is not impact times likelihood"]),
+        (
+            "3 (high)",
+            "3 (likely)",
+            "9 (high)",
+            ["T1 has a risk that is not impact times likelihood"],
+        ),
+    ],
+)
+def test_a_rating_is_a_level_from_its_list_and_risk_is_their_product(
+    tmp_path: Path, impact: str, likelihood: str, risk: str, expected: list[str]
+) -> None:
+    synthetic_repository(tmp_path)
+    held = "`docs/note.md`"
+    text = threat(held, impact=impact, likelihood=likelihood, risk=risk)
+    problems, _ = problems_in(text + matrix(""), tmp_path)
+    assert [p for p in problems if "risk matrix" not in p] == expected
+
+
+def test_each_threat_sits_in_the_matrix_cell_its_ratings_name(tmp_path: Path) -> None:
+    synthetic_repository(tmp_path)
+    text = threat("`docs/note.md`", impact="3 (high)", likelihood="2 (possible)", risk="6")
+    placed = MATRIX.format(low="").replace("| 3 high | | | |", "| 3 high | | T1 | |")
+    assert problems_in(text + placed, tmp_path) == ([], 1)
+
+
+@pytest.mark.parametrize(
+    ("low", "expected"),
+    [
+        ("", ["T1 is not in the one risk matrix cell its ratings name"]),
+        ("T1, T1", ["T1 is not in the one risk matrix cell its ratings name"]),
+        ("T1, T2", ["the risk matrix names T2, which is not a threat"]),
+    ],
+)
+def test_a_threat_missing_doubled_or_unknown_in_the_matrix_is_reported(
+    tmp_path: Path, low: str, expected: list[str]
+) -> None:
+    synthetic_repository(tmp_path)
+    problems, _ = problems_in(threat("`docs/note.md`") + matrix(low), tmp_path)
+    assert problems == expected
+
+
+def test_a_threat_in_the_wrong_cell_is_reported(tmp_path: Path) -> None:
+    synthetic_repository(tmp_path)
+    moved = MATRIX.format(low="").replace("| 2 medium | | | |", "| 2 medium | T1 | | |")
+    problems, _ = problems_in(threat("`docs/note.md`") + moved, tmp_path)
+    assert problems == ["T1 is not in the one risk matrix cell its ratings name"]
+
+
+def test_a_matrix_that_is_missing_or_malformed_is_reported(tmp_path: Path) -> None:
+    synthetic_repository(tmp_path)
+    text = threat("`docs/note.md`")
+    assert problems_in(text, tmp_path)[0] == ["no risk matrix found"]
+    short = matrix().replace("| 2 medium | | | |\n", "")
+    assert problems_in(text + short, tmp_path)[0] == [
+        "the risk matrix does not have one row for each impact"
+    ]
+    narrow = matrix().replace("| 1 low | T1 | | |", "| 1 low | T1 | |")
+    assert problems_in(text + narrow, tmp_path)[0] == [
+        "the risk matrix row for impact 1 does not have three columns"
     ]
 
 
 def test_threats_are_numbered_in_order(tmp_path: Path) -> None:
     synthetic_repository(tmp_path)
     text = threat("`docs/note.md`", number=1) + "\n" + threat("`docs/note.md`", number=3)
-    problems, _ = problems_in(text, tmp_path)
+    problems, _ = problems_in(text + matrix("T1, T3"), tmp_path)
     assert problems == ["threats are not numbered T1 to T2 in order: [1, 3]"]
 
 

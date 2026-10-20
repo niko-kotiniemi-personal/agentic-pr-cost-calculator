@@ -6,7 +6,7 @@ Let a repository turn the calculator on or off, and give each merged pull reques
 
 ### Requirement: One file turns the tool on or off, and a pull request cannot turn off its own report
 
-A repository SHALL turn the calculator on by adding its configuration file with the tool enabled, and off by removing the file or disabling the tool in it. Capture SHALL read the configuration in the working tree. The report SHALL read it from the default branch as it was before the merge and as it is after, and SHALL run when either turns the tool on, so that the pull request that turns the tool off still gets its report, and so does the one that turns it on. When a pull request changes the configuration file, or any workflow file, its comment SHALL say so, because any workflow in the repository can run with the identity that posts the report.
+A repository SHALL turn the calculator on by adding its configuration file with the tool enabled, and off by removing the file or disabling the tool in it. Capture SHALL read the configuration in the working tree. The report SHALL read it from the default branch as it was before the merge and as it is after, only as a blob at each of those two commits and within the size bound that the configuration's format documents, and SHALL run when either turns the tool on, so that the pull request that turns the tool off still gets its report, and so does the one that turns it on. A configuration file that is missing at a commit, is not a regular file there, is larger than that bound or is not valid SHALL NOT turn the tool on at that commit, and SHALL NOT stop the report. When a pull request changes the configuration file, the hook file at the path that the README gives, or any workflow file, its comment SHALL say so, because any workflow in the repository can run with the identity that posts the report, and the hook runs on the machine of everyone who works in the repository.
 
 #### Scenario: Disabled means silent
 
@@ -25,12 +25,17 @@ A repository SHALL turn the calculator on by adding its configuration file with 
 
 #### Scenario: A changed report is flagged
 
-- **WHEN** a pull request changes the configuration file, the workflow file that runs the report, or another workflow file
-- **THEN** its comment says that the pull request changed the tool's configuration or a workflow
+- **WHEN** a pull request changes the configuration file, the hook file, the workflow file that runs the report, or another workflow file
+- **THEN** its comment says that the pull request changed the tool's configuration, its hook or a workflow
+
+#### Scenario: A pull request that makes the configuration unreadable still gets its report
+
+- **WHEN** the configuration turns the tool on before the merge, and a pull request replaces the configuration file with one that is not valid, is larger than its size bound, is a symbolic link or is not a regular file
+- **THEN** its report comment is posted, and says that the pull request changed the tool's configuration
 
 ### Requirement: A merged pull request gets one report comment
 
-When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost, and how many of those minutes ran on runners that the price table does not list; the price table's date; the tool's version; the number of ledger entries it counted, and the number of entries and files it did not count, for each reason this capability gives; the number of calls that capture refused; and the number of calls that capture read without a stop reason, and, when there are any, that the token cost is a lower bound. It SHALL state that the figure is an API-equivalent estimate, not a bill, and that it counts the usage that the pull request's commits carry and the CI runs on those commits. When the report runs again, it SHALL update its earlier comment, and SHALL update only a comment that its own identity wrote.
+When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost, and how many of those minutes ran on runners that the price table does not list; the price table's date; the tool's version; the number of ledger entries it counted, and the number of entries and files it did not count, for each reason this capability gives; the number of calls that capture refused; the number of calls that capture read without a stop reason, and, when there are any, that the token cost is a lower bound; and the number of calls whose usage held a field that capture does not know, and, when there are any, that the token cost may be low. It SHALL state that the figure is an API-equivalent estimate, not a bill, that it counts the usage that the pull request's commits carry and the CI runs on those commits, and that it does not count the model calls that Claude Code makes for its own tools without writing them to the session's transcript. When the hook file at the path that the README gives is missing from the merged commit, or differs from the hook file at the tool's commit that the report runs, the comment SHALL say that the repository's hook does not come from the report's commit, and SHALL quote nothing from that file. When the report runs again, it SHALL update its earlier comment, and SHALL update only a comment that its own identity wrote.
 
 #### Scenario: The comment states the totals
 
@@ -40,7 +45,7 @@ When a pull request merges with the tool on, the report SHALL post one comment g
 #### Scenario: The comment says what the figure is
 
 - **WHEN** the report posts its comment
-- **THEN** the comment says that the figure is an API-equivalent estimate and not a bill, and that it counts the usage the pull request's commits carry and the CI runs on those commits, and names the price table's date and the tool's version
+- **THEN** the comment says that the figure is an API-equivalent estimate and not a bill, that it counts the usage the pull request's commits carry and the CI runs on those commits, and that it does not count the model calls that Claude Code makes for its own tools without writing them to the transcript, and names the price table's date and the tool's version
 
 #### Scenario: Calls that capture refused are counted in the comment
 
@@ -51,6 +56,16 @@ When a pull request merges with the tool on, the report SHALL post one comment g
 
 - **WHEN** the ledger files that a pull request adds count calls that capture read without a stop reason
 - **THEN** the comment gives their number, and says that the token cost is a lower bound
+
+#### Scenario: Calls with a usage field that capture does not know are counted in the comment
+
+- **WHEN** the ledger files that a pull request adds count calls whose usage held a field that capture does not know
+- **THEN** the comment gives their number, and says that the token cost may be low
+
+#### Scenario: A hook from another commit than the report's is named
+
+- **WHEN** the hook file in the merged commit differs from the hook file at the tool's commit that the report runs, as when an update moved the workflow's pin and left the hook behind
+- **THEN** the comment says that the repository's hook does not come from the report's commit, and quotes nothing from the file
 
 #### Scenario: A pull request without a ledger says so
 
@@ -69,26 +84,26 @@ When a pull request merges with the tool on, the report SHALL post one comment g
 
 ### Requirement: The comment shows only what the report computed
 
-The comment SHALL hold only numbers, the report's own fixed text, and model, attribute and runner names that the price table lists, shown as code. It SHALL NOT quote ledger lines, file names, branch names, job names, runner labels the price table does not list, or any other text from the pull request or from the jobs API. A ledger line that names a model or an attribute value that the price table does not list, other than `unknown`, SHALL be refused.
+The comment, the report's job summary and what the report writes to its log SHALL hold only numbers, the report's own fixed text, and model, attribute and runner names that the price table lists, shown as code in the comment and the job summary. None of them SHALL quote ledger lines, file names, branch names, job names, runner labels the price table does not list, or any other text from the pull request or from the jobs API, so that no such text is read as Markdown in the comment or the job summary, or as a workflow command, such as `::error::`, in the log. A ledger line that names a model or an attribute value that the price table does not list, other than `unknown`, SHALL be refused.
 
 #### Scenario: A name with markup is not shown as written
 
-- **WHEN** a ledger line names a model with a link, an image or an @-mention in it
-- **THEN** the line is refused, and the comment contains none of that text
+- **WHEN** a ledger line names a model with a link, an image, an @-mention or a workflow command in it
+- **THEN** the line is refused, and none of that text is in the comment, the job summary or the log
 
 #### Scenario: A runner label with markup is not shown
 
-- **WHEN** a job's runner labels, as the jobs API gives them, hold a link, an image or an @-mention
-- **THEN** the comment contains none of that text
+- **WHEN** a job's runner labels, as the jobs API gives them, hold a link, an image, an @-mention or a workflow command
+- **THEN** none of that text is in the comment, the job summary or the log
 
 #### Scenario: Refused ledger lines are counted, not shown
 
 - **WHEN** some ledger lines that the pull request adds are not valid entries
-- **THEN** the comment says how many were refused and quotes none of them
+- **THEN** the comment says how many were refused, and none of them is quoted in the comment, the job summary or the log
 
 ### Requirement: The ledger is the record
 
-The pull request's usage ledger SHALL remain on the default branch after merge, as its record, and the report SHALL write nothing to the repository. The report SHALL count only the entries of ledger files that the merge adds: files in the ledger folder that the default branch holds after the merge and did not hold before it. It SHALL count each call at most once: an added entry for a call that a ledger file on the default branch held before the merge SHALL NOT be counted, added entries for one call SHALL be counted once when they are identical, and SHALL all be refused when they differ. The comment SHALL say how many ledger files that the default branch held before the merge the pull request removed or changed, and SHALL count none of their entries.
+The pull request's usage ledger SHALL remain on the default branch after merge, as its record, and the report SHALL write nothing to the repository. The report SHALL count only the entries of ledger files that the merge adds: files in the ledger folder that the default branch holds after the merge and did not hold before it. It SHALL count each call at most once: an added entry for a call that a ledger file held at any commit of the default branch's first-parent history before the merge SHALL NOT be counted, added entries for one call SHALL be counted once when they are identical, and SHALL all be refused when they differ, so that a ledger file that leaves the default branch and comes back, as a revert of a revert brings it back, is not counted again. An added ledger file at a path that a ledger file held at any commit of that history SHALL be counted as restored. The comment SHALL say how many ledger files it counted as restored, and how many ledger files that the default branch held before the merge the pull request removed or changed, and SHALL count none of their entries. When a push that gets no comment, with the tool on before or after it, removes or changes ledger files that the default branch held before it, the report's job summary SHALL say how many.
 
 #### Scenario: The ledger stays after merge
 
@@ -120,9 +135,19 @@ The pull request's usage ledger SHALL remain on the default branch after merge, 
 - **WHEN** a pull request removes, changes or renames a ledger file that the default branch held before the merge
 - **THEN** the comment says how many such files it removed or changed, and counts none of their entries
 
+#### Scenario: A ledger file that a revert brings back is not counted again
+
+- **WHEN** a pull request's ledger file was counted when it merged, a later pull request reverted that merge, and a third pull request reverts that revert
+- **THEN** the third pull request's report counts none of that file's entries, and its comment says that it restored one ledger file
+
+#### Scenario: A removal in a push without a comment is flagged in the job summary
+
+- **WHEN** a push to the default branch that merges no pull request, or more than one, removes or changes ledger files that the default branch held before it, with the tool on
+- **THEN** no comment is posted, and the job summary says how many ledger files the push removed or changed
+
 ### Requirement: The report reads the ledger from git, within bounds
 
-The report SHALL read ledger files only as blobs from git, never through the working tree. It SHALL refuse an added path in the ledger folder that is not a regular file, such as a symbolic link or a submodule, and SHALL learn each blob's size before reading it. It SHALL refuse the ledger change when the added ledger files are larger in total than the size bound that the ledger format documents, which capture applies to each ledger file it reads, and SHALL then still report the CI cost.
+The report SHALL read ledger files only as blobs from git, never through the working tree. It SHALL refuse an added path in the ledger folder that is not a regular file, such as a symbolic link or a submodule, and SHALL learn each blob's size before reading it. It SHALL refuse the ledger change when the added ledger files are larger in total than the size bound that the ledger format documents, which capture applies to each ledger file it reads, and SHALL then still report the CI cost. It SHALL read the ledger files that the default branch's first-parent history held before the merge by the rules that capture applies to the ledger files it reads: it SHALL skip a path in the ledger folder that is not a regular file and a file larger than the size bound, and SHALL skip a line that does not match the ledger format, counting it neither as an entry nor as a refused line of the pull request, so that no ledger file that the default branch already holds can stop or slow every later report. It SHALL fetch what it reads: the default branch's history up to the push's commit, and the pull request's head, as `refs/pull/<number>/head`.
 
 #### Scenario: An oversized ledger is refused
 
@@ -134,9 +159,73 @@ The report SHALL read ledger files only as blobs from git, never through the wor
 - **WHEN** a pull request adds a symbolic link in the ledger folder
 - **THEN** the report reads nothing through it, and the comment counts it as a refused file
 
+#### Scenario: An oversized ledger file that the default branch holds does not stop the report
+
+- **WHEN** the default branch's first-parent history held, before the merge, a ledger file larger than the size bound
+- **THEN** the report reads nothing of that file, and posts its comment
+
+#### Scenario: A submodule in the default branch's ledger folder does not stop the report
+
+- **WHEN** the default branch's first-parent history held, before the merge, a submodule or a symbolic link in the ledger folder
+- **THEN** the report reads nothing through it, and posts its comment
+
+#### Scenario: An unreadable line in an earlier ledger file does not stop the report
+
+- **WHEN** a ledger file that the default branch held before the merge holds a line that does not match the ledger format
+- **THEN** the report skips that line, counts it neither as an entry nor as a refused line of the pull request, and posts its comment
+
+### Requirement: Each ledger line is held to the ledger format
+
+The report SHALL read each line of the ledger files that the merge adds against the format that the ledger format documents, and SHALL refuse every line that does not match it, among them a line with a count that is not a whole number from zero up to the ceiling, a count given as `true` or `false`, as not-a-number or as a number too large to hold, such as `1e999`, a field given twice or a field that the format does not name, nesting deeper than the format allows, or a day that is not a date. A refused line's entry SHALL NOT be counted, the line SHALL be counted as refused, and no line, however it is malformed, SHALL stop the report.
+
+#### Scenario: A ledger count that is not a whole number within the ceiling is refused
+
+- **WHEN** a ledger line that the pull request adds gives a count that is negative, a fraction, text, or one more than the ceiling
+- **THEN** that line is refused, counted as refused, and its entry is not counted
+
+#### Scenario: A ledger count given as `true` or `false` is refused
+
+- **WHEN** a ledger line that the pull request adds gives a count as `true` or as `false`
+- **THEN** that line is refused, counted as refused, and its entry is not counted
+
+#### Scenario: A ledger count given as not-a-number is refused
+
+- **WHEN** a ledger line that the pull request adds gives a count as `NaN`, which Python's JSON reader reads as not-a-number
+- **THEN** that line is refused, counted as refused, and its entry is not counted
+
+#### Scenario: A ledger count too large to hold is refused
+
+- **WHEN** a ledger line that the pull request adds gives a count as `1e999`, which Python's JSON reader reads as infinity, or as a whole number thousands of digits long, which it refuses to read
+- **THEN** that line is refused, counted as refused, and its entry is not counted, and the report goes on
+
+#### Scenario: A ledger line that gives a field twice is refused
+
+- **WHEN** a ledger line that the pull request adds gives one field twice, which Python's JSON reader would read as the last of the two values
+- **THEN** that line is refused, counted as refused, and its entry is not counted
+
+#### Scenario: A ledger line with a field that the format does not name is refused
+
+- **WHEN** a ledger line that the pull request adds holds a field that the ledger format does not name
+- **THEN** that line is refused, counted as refused, and its entry is not counted
+
+#### Scenario: A ledger line nested too deeply is refused
+
+- **WHEN** a ledger line that the pull request adds nests arrays or objects deeper than the format allows, including so deep that Python's JSON reader raises an error on it
+- **THEN** that line is refused, counted as refused, and its entry is not counted, and the report goes on
+
+#### Scenario: A ledger day that is not a date is refused
+
+- **WHEN** a ledger line that the pull request adds gives a day that is not a date in the calendar, such as `2026-02-30`
+- **THEN** that line is refused, counted as refused, and its entry is not counted
+
+#### Scenario: An unreadable ledger line is counted and the report completes
+
+- **WHEN** a ledger file that the pull request adds holds, among valid lines, a line that is not JSON or is not valid UTF-8
+- **THEN** that line is counted as refused, the valid lines are counted, and the comment is posted
+
 ### Requirement: The report runs only trusted code, with the least it needs
 
-The report SHALL run only for a push that a merge makes to the default branch, and SHALL refuse every other event, including when the workflow that calls it was triggered by something else. It SHALL comment only when every commit that the push adds to the default branch's first-parent history belongs to one pull request. A push that merges no pull request SHALL get no comment. A push that merges more than one pull request, as a merge queue can, or that adds commits of no pull request beside a merge, SHALL get no comment either, and the report SHALL say so in its job summary, because it cannot tell which ledger files and runs belong to which. The report SHALL run only the tool's own code, from the commit at which the calling workflow pins the tool, and SHALL read the pull request's files only as data, never running, importing or installing anything from them. It SHALL use the workflow's own token, with no permissions beyond reading the repository and its Actions data and writing pull request comments, and SHALL never write the token to its output.
+The report SHALL run only for a push that a merge makes to the default branch, and SHALL refuse every other event, including when the workflow that calls it was triggered by something else. It SHALL tell such a push by its event being `push` and its `github.ref` being `refs/heads/` followed by the default branch's name, so that neither another event that runs on the default branch nor a push of a tag named like the default branch passes. It SHALL comment only when every commit that the push adds to the default branch's first-parent history belongs to one pull request. A push that merges no pull request SHALL get no comment, and the report SHALL say so in its job summary. A push that merges more than one pull request, as a merge queue can, or that adds commits of no pull request beside a merge, SHALL get no comment either, and the report SHALL say so in its job summary, because it cannot tell which ledger files and runs belong to which. The report SHALL make no more calls to GitHub's API than the call budget that the README gives, and its job SHALL have a time limit. When the budget runs out before the report can tell which pull request the push merges, it SHALL post no comment, and SHALL say so in its job summary. The report SHALL run only the tool's own code, from the commit at which the calling workflow pins the tool, and SHALL read the pull request's files only as data, never running, importing or installing anything from them. It SHALL use the workflow's own token, with no permissions beyond reading the repository and its Actions data and writing pull request comments, and SHALL never write the token to its output: its log, its job summary or its comment.
 
 #### Scenario: No secret is configured
 
@@ -150,13 +239,23 @@ The report SHALL run only for a push that a merge makes to the default branch, a
 
 #### Scenario: Another event is refused
 
-- **WHEN** the report is run for a pull request event, or for a push to a branch other than the default branch
+- **WHEN** the report is run for a `pull_request`, `pull_request_target`, `workflow_dispatch`, `workflow_run` or `merge_group` event, or for a push to a branch other than the default branch
+- **THEN** it posts nothing, and its job fails
+
+#### Scenario: A tag named like the default branch is refused
+
+- **WHEN** the report is run for a push of a tag whose name is the default branch's name, such as `refs/tags/main` when the default branch is `main`
 - **THEN** it posts nothing, and its job fails
 
 #### Scenario: A push that merges no pull request gets no comment
 
 - **WHEN** a commit is pushed straight to the default branch, without a pull request
-- **THEN** no comment is posted, and the job succeeds
+- **THEN** no comment is posted, the job summary says that the push merged no pull request, and the job succeeds
+
+#### Scenario: A push with more commits than the call budget allows gets no comment
+
+- **WHEN** a push to the default branch adds more commits to its first-parent history than the report's call budget lets it look up
+- **THEN** no comment is posted, and the job summary says that the report could not tell which pull request the push merged
 
 #### Scenario: A push that merges several pull requests gets no comment
 
@@ -176,4 +275,4 @@ The report SHALL run only for a push that a merge makes to the default branch, a
 #### Scenario: The token never reaches the output
 
 - **WHEN** the report runs, whether it succeeds or fails
-- **THEN** neither its log nor its comment contains the token
+- **THEN** none of its log, its job summary and its comment contains the token

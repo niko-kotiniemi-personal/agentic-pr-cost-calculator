@@ -12,6 +12,7 @@ import itertools
 import json
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,18 @@ REQUIRED_FILES = [
     ".github/workflows/ci.yml",
     "openspec/config.yaml",
     "vendor/superpowers/UPSTREAM.lock",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "CHANGELOG.md",
+    ".editorconfig",
+    ".github/CODEOWNERS",
+    ".github/pull_request_template.md",
+    ".github/ISSUE_TEMPLATE/bug_report.yml",
+    ".github/ISSUE_TEMPLATE/feature_request.md",
+    ".github/ISSUE_TEMPLATE/config.yml",
+    "docs/requirements.md",
+    "docs/how-it-works.md",
+    "docs/features/README.md",
 ]
 
 # Built from parts so that this file does not match its own patterns.
@@ -149,13 +162,101 @@ def test_renovate_reads_the_vendored_lock() -> None:
 
 
 def workflows() -> list[Path]:
-    return sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+    folder = ROOT / ".github" / "workflows"
+    return sorted([*folder.glob("*.yml"), *folder.glob("*.yaml")])
 
 
 def test_every_workflow_declares_a_read_only_token() -> None:
+    assert workflows(), "no workflow was found, so this test covered nothing"
     for path in workflows():
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
         assert doc.get("permissions") == {"contents": "read"}, path.name
+
+
+# The workflows that may grant a job a write permission, and which ones. The
+# report's and the release's workflows add their entries when they are built.
+WRITES_ALLOWED: dict[str, set[str]] = {}
+
+# Triggers that run a workflow with this repository's token on someone else's code.
+FORBIDDEN_TRIGGERS = {"pull_request_target", "workflow_run"}
+
+
+def triggers(doc: dict[Any, Any]) -> set[str]:
+    # YAML 1.1 reads a bare `on:` key as the boolean true.
+    on = doc.get("on", doc.get(True))
+    if isinstance(on, str):
+        return {on}
+    return set(on or [])
+
+
+def writes(permissions: Any) -> set[str]:
+    if permissions == "write-all":
+        return {"write-all"}
+    if isinstance(permissions, dict):
+        return {f"{scope}: write" for scope, level in permissions.items() if level == "write"}
+    return set()
+
+
+def workflow_problems(name: str, text: str) -> list[str]:
+    doc = yaml.safe_load(text)
+    problems = [
+        f"{name} triggers on {trigger}" for trigger in sorted(triggers(doc) & FORBIDDEN_TRIGGERS)
+    ]
+    blocks = [("the workflow", doc.get("permissions"))] + [
+        (f"job `{job}`", body.get("permissions")) for job, body in (doc.get("jobs") or {}).items()
+    ]
+    allowed = WRITES_ALLOWED.get(name, set())
+    for where, permissions in blocks:
+        problems.extend(
+            f"{name} {where} grants `{grant}`" for grant in sorted(writes(permissions) - allowed)
+        )
+    if re.search(r"\bsecrets\b", text):
+        problems.append(f"{name} reads a secret")
+    return problems
+
+
+def test_no_workflow_writes_runs_on_foreign_triggers_or_reads_a_secret() -> None:
+    problems = [
+        problem
+        for path in workflows()
+        for problem in workflow_problems(path.name, path.read_text(encoding="utf-8"))
+    ]
+    assert not problems, problems
+
+
+PLANTED_WORKFLOW = """\
+on:
+  pull_request_target:
+  workflow_run:
+    workflows: [ci]
+  push:
+permissions: write-all
+jobs:
+  a:
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - run: echo ${{ secrets.TOKEN }}
+"""
+
+
+def test_the_workflow_checks_name_each_planted_violation() -> None:
+    assert workflow_problems("x.yaml", PLANTED_WORKFLOW) == [
+        "x.yaml triggers on pull_request_target",
+        "x.yaml triggers on workflow_run",
+        "x.yaml the workflow grants `write-all`",
+        "x.yaml job `a` grants `issues: write`",
+        "x.yaml reads a secret",
+    ]
+
+
+def test_a_write_the_workflow_is_allowed_is_not_reported(monkeypatch: Any) -> None:
+    text = "on: push\njobs:\n  a:\n    permissions:\n      pull-requests: write\n"
+    assert workflow_problems("r.yml", text) == ["r.yml job `a` grants `pull-requests: write`"]
+    monkeypatch.setitem(WRITES_ALLOWED, "r.yml", {"pull-requests: write"})
+    assert workflow_problems("r.yml", text) == []
+    assert triggers({"on": ["push", "pull_request"]}) == {"push", "pull_request"}
 
 
 def test_every_action_is_pinned_to_a_full_commit() -> None:
@@ -213,3 +314,156 @@ def test_the_sync_script_and_the_lock_list_the_same_paths() -> None:
     m = re.search(r"^PATHS=\((.*)\)$", script, re.MULTILINE)
     assert m
     assert m.group(1).split() == lock_field("vendored_paths").split(",")
+
+
+# The oldest Python the tool supports. It rises only when this version nears
+# its end of life, so that adopters on older systems can keep using the tool.
+def pyproject() -> dict[str, Any]:
+    config: dict[str, Any] = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    return config
+
+
+def oldest_python() -> str:
+    """The one source of the oldest supported Python: `requires-python`."""
+    match = re.fullmatch(r">=(3\.\d+)", pyproject()["project"]["requires-python"])
+    assert match, "requires-python is not of the form >=3.N"
+    return match.group(1)
+
+
+STATED_PYTHON = re.compile(r"\bPython (3\.\d+)\b")
+
+
+def python_floor_problems(oldest: str, copies: dict[str, Any], prose: dict[str, str]) -> list[str]:
+    """Name each copy of the oldest supported Python that disagrees with `oldest`.
+
+    `copies` maps a setting to its value; `prose` maps a document to its text, where every
+    "Python 3.N" it states must be the oldest version.
+    """
+    expected = {
+        "ruff target-version": "py" + oldest.replace(".", ""),
+        "mypy python_version": oldest,
+        ".python-version": oldest,
+    }
+    problems = [
+        f"{name} says {copies.get(name)!r}, not {value!r}"
+        for name, value in expected.items()
+        if copies.get(name) != value
+    ]
+    matrix = copies.get("CI matrix") or []
+    if oldest not in matrix:
+        problems.append(f"the CI matrix lacks the oldest supported Python {oldest}")
+    if "3.x" not in matrix:
+        problems.append("the CI matrix lacks the newest release, 3.x")
+    for document, text in sorted(prose.items()):
+        problems.extend(
+            f"{document} names Python {version}, not {oldest}"
+            for version in STATED_PYTHON.findall(text)
+            if version != oldest
+        )
+    return problems
+
+
+PYTHON_PROSE = [
+    "README.md",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "CLAUDE.md",
+    "docs/features/releases-and-compatibility.md",
+    "openspec/changes/add-pr-cost-calculator/specs/project-standards/spec.md",
+]
+
+
+def test_every_copy_of_the_oldest_supported_python_matches_requires_python() -> None:
+    config = pyproject()
+    ci = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    copies = {
+        "ruff target-version": config["tool"]["ruff"]["target-version"],
+        "mypy python_version": config["tool"]["mypy"]["python_version"],
+        ".python-version": (ROOT / ".python-version").read_text(encoding="utf-8").strip(),
+        "CI matrix": ci["jobs"]["python"]["strategy"]["matrix"]["python-version"],
+    }
+    prose = {name: (ROOT / name).read_text(encoding="utf-8") for name in PYTHON_PROSE}
+    assert all(STATED_PYTHON.search(text) for text in prose.values()), "a document states none"
+    assert python_floor_problems(oldest_python(), copies, prose) == []
+
+
+def test_a_copy_of_the_oldest_python_that_disagrees_is_named() -> None:
+    copies = {
+        "ruff target-version": "py311",
+        "mypy python_version": "3.12",
+        ".python-version": "3.11",
+        "CI matrix": ["3.12"],
+    }
+    prose = {"README.md": "Runs on Python 3.10 and later.", "SECURITY.md": "Python 3.11."}
+    assert python_floor_problems("3.11", copies, prose) == [
+        "mypy python_version says '3.12', not '3.11'",
+        "the CI matrix lacks the oldest supported Python 3.11",
+        "the CI matrix lacks the newest release, 3.x",
+        "README.md names Python 3.10, not 3.11",
+    ]
+
+
+def test_matching_copies_of_the_oldest_python_raise_nothing() -> None:
+    copies = {
+        "ruff target-version": "py312",
+        "mypy python_version": "3.12",
+        ".python-version": "3.12",
+        "CI matrix": ["3.12", "3.x"],
+    }
+    assert python_floor_problems("3.12", copies, {"README.md": "Python 3.12 and later."}) == []
+
+
+def test_the_project_version_is_semantic_and_the_changelog_has_an_unreleased_section() -> None:
+    assert re.fullmatch(r"\d+\.\d+\.\d+", pyproject()["project"]["version"])
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    assert re.search(r"^## \[Unreleased\]$", changelog, re.MULTILINE)
+
+
+def major_updates_need_approval(config: dict[str, Any]) -> bool:
+    return any(
+        rule.get("matchUpdateTypes") == ["major"] and rule.get("dependencyDashboardApproval")
+        for rule in config.get("packageRules", [])
+    )
+
+
+def test_renovate_holds_major_updates_for_the_owner_and_lets_minor_and_patch_through() -> None:
+    config = renovate()
+    assert major_updates_need_approval(config)
+    assert not config.get("dependencyDashboardApproval"), "every update would wait for approval"
+    assert config.get("dependencyDashboard") is not False
+
+
+def test_the_major_update_check_names_a_rule_that_is_missing() -> None:
+    assert not major_updates_need_approval({"packageRules": []})
+    assert not major_updates_need_approval(
+        {
+            "packageRules": [
+                {"matchUpdateTypes": ["major", "minor"], "dependencyDashboardApproval": True}
+            ]
+        }
+    )
+
+
+def required_privacy_checkbox(form: dict[str, Any]) -> bool:
+    return any(
+        field.get("type") == "checkboxes"
+        and field.get("id") == "privacy"
+        and all(option.get("required") for option in field["attributes"]["options"])
+        for field in form.get("body", [])
+    )
+
+
+def test_the_bug_report_form_requires_the_privacy_checkbox() -> None:
+    form = yaml.safe_load(
+        (ROOT / ".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
+    )
+    assert required_privacy_checkbox(form)
+
+
+def test_a_bug_report_form_whose_privacy_checkbox_is_optional_is_refused() -> None:
+    option = {"label": "No private text.", "required": False}
+    field = {"type": "checkboxes", "id": "privacy", "attributes": {"options": [option]}}
+    assert not required_privacy_checkbox({"body": [field]})
+    assert not required_privacy_checkbox({"body": []})
+    option["required"] = True
+    assert required_privacy_checkbox({"body": [field]})

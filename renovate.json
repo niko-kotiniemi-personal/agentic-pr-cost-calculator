@@ -15,7 +15,8 @@
   "minimumReleaseAgeBehaviour": "timestamp-optional",
   "osvVulnerabilityAlerts": true,
   "vulnerabilityAlerts": {
-    "minimumReleaseAge": null
+    "minimumReleaseAge": null,
+    "dependencyDashboardApproval": false
   },
   "packageRules": [
     {
@@ -35,6 +36,13 @@
         "pinDigest"
       ],
       "minimumReleaseAge": null
+    },
+    {
+      "description": "A major update can drop support for older systems that adopters run, so it waits for the owner's approval on the dependency dashboard (design decision 10). Minor and patch updates are proposed as usual, and so are vulnerability fixes, which the vulnerabilityAlerts block above lets through without approval.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
     }
   ],
   "customManagers": [

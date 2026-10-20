@@ -2,13 +2,15 @@
 
 Record what an agent session spends on model calls in this repository, as it works, and carry it to the pull request with the agent's own commits, in a form the pull request's CI can read at merge without any external service.
 
-In the scenarios below, a commit that is expected to carry a ledger file is made where git's attributes give the ledger path no filter and no working-tree encoding, git does not refuse to add the file, and no git hook of the repository refuses it, and a commit that a scenario does not spell out, such as the agent's next commit, is one that the step stages for, unless the scenario says otherwise. In them, each run of the step reads the transcripts to their end within its time budget, and no other session commits in the repository, unless the scenario says otherwise.
+In the scenarios below, a commit that is expected to carry a ledger file is made where git's attributes give the ledger path no filter and no working-tree encoding, git does not refuse to add the file, and no git hook of the repository refuses it, and a commit that a scenario does not spell out, such as the agent's next commit, is one that the step stages for, unless the scenario says otherwise. In them, each run of the step reads the transcripts to their end within its time budget, and no other session commits in the repository, unless the scenario says otherwise. In them, too, every run of the step finds the tool on in the repository and the person opted in, and the hook file in the working tree is the one whose checksum the registered command carries, unless the scenario says otherwise.
 
 ## ADDED Requirements
 
 ### Requirement: Capture runs only where the tool is on and the person has opted in
 
-The capture step SHALL record nothing unless the repository's configuration turns the tool on and the person running the session has turned capture on for themselves, in their global git configuration, which is not part of the repository. The step SHALL read that setting only from the person's global configuration files themselves, `~/.gitconfig` and git's configuration file in their XDG configuration folder, which is `$XDG_CONFIG_HOME/git/config` when that variable holds an absolute path and `~/.config/git/config` otherwise, not from files they include, ignoring any environment variable that points git at other configuration files or adds settings. Where both files set it, `~/.gitconfig`, which git reads after the other, SHALL decide. The step SHALL record nothing in a repository whose own git configuration turns capture off.
+The capture step SHALL record nothing unless the repository's configuration turns the tool on and the person running the session has turned capture on for themselves, in their global git configuration, which is not part of the repository. The step SHALL read the repository's configuration file in the working tree only when it is a regular file no larger than the size bound that the configuration's format documents, and SHALL otherwise take the tool to be off. The step SHALL read the person's setting only from their global configuration files themselves, `~/.gitconfig` and git's configuration file in their XDG configuration folder, which is `$XDG_CONFIG_HOME/git/config` when that variable holds an absolute path and `~/.config/git/config` otherwise, not from files they include, ignoring any environment variable that points git at other configuration files or adds settings. It SHALL take the home folder `~` to be the folder that `HOME` names when that variable holds an absolute path, and otherwise, on Windows, the one that git uses when `HOME` is not set, which is `HOMEDRIVE` and `HOMEPATH` together where they name a folder that exists and is not Windows' system folder, and `USERPROFILE` where they do not, and elsewhere none, and SHALL never read a configuration file from a relative path. It SHALL read the setting by git's rules for its configuration files: section and key names match in any case, a value is read without its quotes or a comment that follows it, the last value in a file decides, and a key in a subsection, such as `[pr-cost "x"]`, or in a comment is not the setting. Of the values, only `true`, `yes`, `on` and `1`, in any case, and the key alone with no value SHALL turn capture on, and any other value SHALL leave it off, even one that git reads as true, such as `2`. Where both files set it, `~/.gitconfig`, which git reads after the other, SHALL decide. The step SHALL record nothing in a repository whose own git configuration turns capture off.
+
+Consent SHALL hold for each call that the step records, not only for the run that records it. The step SHALL note in its store, for each session, when a run finds both switches on and when a run finds either off, creating the store where there is none, and SHALL record a session's calls only when they were made inside an interval when both were on. Such an interval begins at the session's start when the session's first run finds both on, and otherwise at a run that finds both on after one that found either off, and it ends at the last run that finds both on before the next run that finds either off. A run that finds the person's own capture off, in their global configuration or in the repository's own, SHALL end that interval for every session that the store notes, and the step SHALL never stage, after that run, a call made before it. Whatever the switches say, every run that the floors in `project-standards` let go on SHALL take back and put back ledger files, and note as taken the calls of a file that a commit holds, as the requirements below say.
 
 #### Scenario: No configuration file means no capture
 
@@ -55,9 +57,64 @@ The capture step SHALL record nothing unless the repository's configuration turn
 - **WHEN** the person has turned capture on in their global configuration, and the repository's own git configuration turns it off
 - **THEN** nothing is recorded in that repository
 
+#### Scenario: The home folder is the one git reads on Windows
+
+- **WHEN** on Windows, `HOME` holds an absolute path to a folder other than the person's profile folder, and a `.gitconfig` that turns capture on is in only one of the two folders
+- **THEN** the session's calls are recorded when that file is in the folder that `HOME` names, and nothing is recorded when it is in the profile folder
+
+#### Scenario: A relative home folder is not read
+
+- **WHEN** `HOME` holds a relative path, and only a `.gitconfig` at that path inside the repository turns capture on
+- **THEN** nothing is recorded
+
+#### Scenario: The last value in a file decides
+
+- **WHEN** the person's `~/.gitconfig` sets `pr-cost.capture` to `false` and then, further down the same file, to `true`
+- **THEN** the session's calls are recorded, and with the two values the other way round, nothing is recorded
+
+#### Scenario: Git's spellings of the setting opt a person in
+
+- **WHEN** the person's `~/.gitconfig` turns capture on only with `Capture = Yes` in a section written `[PR-Cost]`, or only with the value `on`, `1` or `"true"`, or only with the key alone and no value
+- **THEN** the session's calls are recorded
+
+#### Scenario: A subsection or a comment does not opt a person in
+
+- **WHEN** the person's `~/.gitconfig` sets capture to `true` only in a subsection, such as `[pr-cost "x"]`, or only in a comment
+- **THEN** nothing is recorded
+
+#### Scenario: A number other than `1`, or a value that git cannot read, does not opt a person in
+
+- **WHEN** the person's `~/.gitconfig` sets capture only to `2`, or only to a value that git cannot read as true or false, such as `maybe`
+- **THEN** nothing is recorded
+
+#### Scenario: A configuration file that is not a regular file turns capture off
+
+- **WHEN** the repository's configuration file in the working tree is a symbolic link, a named pipe or a folder, or is larger than its size bound
+- **THEN** nothing is recorded, and the run ends without waiting on the file
+
+#### Scenario: Calls made before a person opts in are not recorded
+
+- **WHEN** the repository turns the tool on, a session makes calls while the person has not turned capture on, a run of the step then comes, and the person then turns capture on
+- **THEN** none of the calls made before that run is recorded, and the calls that the session makes after a later run finds capture on are recorded
+
+#### Scenario: Calls made while capture was off are not recorded when it is on again
+
+- **WHEN** a run of the step has found both switches on, the person then turns capture off, the session makes calls, a run of the step comes, and the person then turns capture on again
+- **THEN** none of the calls that the session made after the last run that found capture on, and before the next run that found it on again, is recorded
+
+#### Scenario: Calls recorded before an opt-out are not staged
+
+- **WHEN** calls were recorded and are waiting to be staged, the person then turns capture off, a run of the step comes, and the person turns capture on again before the agent's next commit
+- **THEN** that commit carries none of those calls
+
+#### Scenario: A file staged before capture is turned off is still taken back
+
+- **WHEN** the step has staged a ledger file for a `git commit` that is then refused at a permission prompt, the person then turns capture off, and the step's next run finds that command over while no other git command holds the index
+- **THEN** that run takes the file back, from the index and the working tree, and no later commit carries its calls
+
 ### Requirement: Usage is recorded per model call
 
-The capture step SHALL record each model call once. Each record SHALL hold the call's UTC day, its model, a SHA-256 hash of its message id, whether the main agent or a subagent made it, its input tokens, output tokens, cache-write tokens split by cache lifetime where the source gives it, and cache-read tokens, and, where the source gives them, the attributes that change its price: service tier, speed, inference region and server-side tool requests. A call SHALL be identified by its message id, so that a call the transcript writes over several lines, or that appears in more than one transcript, is recorded once. A call's usage SHALL be read from its lines that give a stop reason, because its earlier lines can give partial usage. A call none of whose lines gives a stop reason SHALL be read from its last line once the call is over: when a later call follows it in the same transcript, or when the agent that made it has stopped. The ledger SHALL count the calls read that way, because such lines give the usage of the call's start, with fewer output tokens and server-side tool requests than the call made. A call that is not over yet SHALL be left for a later run. A subagent's calls SHALL be read from the subagent's own transcript. To learn which calls the branch's ledger files already hold, the step SHALL read those files only as blobs from git, never through the working tree, skipping any path in the ledger folder that is not a regular file, and SHALL learn each file's size before reading it, skipping any file larger than the size bound that the ledger format documents.
+The capture step SHALL record each model call once. Each record SHALL hold the call's UTC day, its model, a SHA-256 hash of its message id, whether the main agent or a subagent made it, its input tokens, output tokens, cache-write tokens split by cache lifetime where the source gives it, and cache-read tokens, and, where the source gives them, the attributes that change its price: service tier, speed, inference region and server-side tool requests. A call SHALL be identified by its message id, so that a call the transcript writes over several lines, or that appears in more than one transcript, is recorded once. A call's usage SHALL be read from its lines that give a stop reason, because its earlier lines can give partial usage. A call none of whose lines gives a stop reason SHALL be read from its last line once the call is over: when a later call follows it in the same transcript, or when the agent that made it has stopped. The ledger SHALL count the calls read that way, because such lines give the usage of the call's start, with fewer output tokens and server-side tool requests than the call made. A call that is not over yet SHALL be left for a later run. A call whose usage, or a block nested in it, holds a field that the step does not know SHALL be recorded from the fields it knows, and the ledger SHALL count such calls, without naming the field, because a new field can carry a charge that the entry then leaves out. The step SHALL read only the transcript lines that end in a line break, leaving a line that is still being written for a later run, and a line that a run began as the first line it read, and could not finish reading within its time budget, SHALL be skipped by the next run and counted in the ledger as one refused call, so that no one line can hold capture back for good. A subagent's calls SHALL be read from the subagent's own transcript. To learn which calls the branch's ledger files already hold, the step SHALL read those files only as blobs from git, never through the working tree, skipping any path in the ledger folder that is not a regular file, and SHALL learn each file's size before reading it, skipping any file larger than the size bound that the ledger format documents, and any file whose blob the clone does not hold, as a partial clone may not. Every git command that the step runs SHALL run with `GIT_NO_LAZY_FETCH=1` and `GIT_TERMINAL_PROMPT=0`, so that none of them fetches what the clone lacks, asks for credentials or opens a network connection.
 
 #### Scenario: A turn's calls are recorded once
 
@@ -89,6 +146,11 @@ The capture step SHALL record each model call once. Each record SHALL hold the c
 - **WHEN** the branch holds a ledger file larger than the size bound
 - **THEN** capture does not read that file, and still records the session's calls
 
+#### Scenario: Capture fetches no ledger file that its clone lacks
+
+- **WHEN** the branch holds a ledger file whose blob a partial clone has not fetched
+- **THEN** capture reads nothing of that file, no git command that it runs fetches anything or opens a network connection, and it still records the session's calls
+
 #### Scenario: A call written over several lines is recorded once
 
 - **WHEN** one model call's message appears on three transcript lines, each giving its stop reason and the same usage
@@ -113,6 +175,21 @@ The capture step SHALL record each model call once. Each record SHALL hold the c
 
 - **WHEN** none of a call's lines gives a stop reason, no later call follows it, and the agent that made it has not stopped
 - **THEN** nothing is recorded for that call yet, and a later run records it
+
+#### Scenario: A half-written last line waits for a later run
+
+- **WHEN** a transcript's last line does not yet end in a line break, as when Claude Code is still writing it
+- **THEN** the run reads nothing from that line and counts nothing for it, and a later run reads it once its line break is written
+
+#### Scenario: A line too long for a run's budget is skipped and counted
+
+- **WHEN** a run of the step begins with a transcript line, and cannot finish reading it within its time budget
+- **THEN** the next run skips that line, the ledger counts it as one refused call, and the lines after it are read
+
+#### Scenario: A usage field the step does not know is counted
+
+- **WHEN** a call's usage holds, besides the fields that the step reads, a field that it does not know, at its top level or in a block nested in it
+- **THEN** the call's entry is recorded from the fields that the step knows, the ledger counts one call whose usage held a field that the step does not know, and neither that field's name nor its value is in the ledger
 
 #### Scenario: Lines of one call that disagree are refused
 
@@ -169,8 +246,8 @@ A ledger entry SHALL contain no prompt text, response text, code, file contents,
 
 #### Scenario: A planted string never reaches the ledger
 
-- **WHEN** every text value in a transcript, other than model names and price attributes, is a distinct marker string
-- **THEN** no marker appears anywhere in the ledger
+- **WHEN** every text value in a transcript and in the hook's input, and the name of the branch checked out, is a distinct marker string, except the model names and price attribute values that the price table lists
+- **THEN** no marker appears in any ledger file, whether in its contents or in its path
 
 #### Scenario: An unexpected model name is recorded as unknown
 
@@ -184,12 +261,12 @@ A ledger entry SHALL contain no prompt text, response text, code, file contents,
 
 #### Scenario: An attribute value the price table does not list is recorded as unknown
 
-- **WHEN** a call's service tier is a value that the price table does not list
-- **THEN** its entry's service tier is `unknown`
+- **WHEN** a call's service tier, its speed or its inference region is a value that the price table does not list
+- **THEN** that attribute is `unknown` in its entry, and the entry records each of the call's other attributes whose value the price table lists
 
 ### Requirement: Counts are whole numbers
 
-Every token count and request count SHALL be a whole number from zero up to a ceiling that the ledger format documents. A value that is text, a fraction, negative, not a number, `true` or `false`, or above the ceiling SHALL be refused: the call is left out, and the ledger counts it as refused, once, with nothing else about it.
+Every token count and request count SHALL be a whole number from zero up to a ceiling that the ledger format documents. A value that is text, a fraction, negative, not a number, infinite, `true` or `false`, or above the ceiling SHALL be refused: the call is left out, and the ledger counts it as refused, once, with nothing else about it.
 
 #### Scenario: A count that is not a whole number is refused
 
@@ -200,6 +277,21 @@ Every token count and request count SHALL be a whole number from zero up to a ce
 
 - **WHEN** a call's input tokens are negative
 - **THEN** no entry is recorded for that call
+
+#### Scenario: A count at the ceiling is recorded
+
+- **WHEN** a call's input tokens equal the ceiling that the ledger format documents
+- **THEN** its entry records that count
+
+#### Scenario: A count above the ceiling is refused
+
+- **WHEN** a call's input tokens are one more than the ceiling
+- **THEN** no entry is recorded for that call, and the ledger counts one refused call
+
+#### Scenario: A count that is not a number or is `false` is refused
+
+- **WHEN** a call's output tokens are given as `false`, or as `NaN`, `Infinity` or `1e999`, which Python's JSON reader reads as not-a-number or as infinity
+- **THEN** no entry is recorded for that call, and the ledger counts one refused call
 
 ### Requirement: Each entry carries an activity type
 
@@ -256,7 +348,7 @@ Capture SHALL run when Claude finishes responding, when a subagent finishes, whe
 
 ### Requirement: A ledger file is staged only for a commit whose branch and contents the step can tell
 
-A command runs `git commit` when one of the commands it is made of is `git`, with or without git's own options, followed by the `commit` subcommand, and is not a dry run, which it is when any of `--dry-run`, `--short`, `--porcelain`, `--long`, `-z` and `--null`, in any spelling that git accepts, abbreviated or combined with other short options, is in effect once git has read all of the commit's options, where `--short`, `--porcelain` and `--long` are one setting, which the `--no-` form of any of them clears; a command that only names it, such as in single quotes or as an argument of another command, does not. Before a command that runs `git commit` in this repository, the step SHALL stage, as one new ledger file, the calls recorded in the worktree where the commit runs, while the branch now checked out there was checked out, that no ledger file on that branch holds and that the step has not noted as taken, as the next requirement says, when the commit is one of the command's top-level commands, not part of a pipeline, joined to the others by `&&`, `;` or line breaks, runs in the foreground, and comes after nothing but `cd` to a path that the command writes out and the git commands `add`, `rm`, `mv`, `status`, `diff`, `log` and `show`, with or without git's own options. Each command substitution and process substitution in the commit or in a command before it, whether in an argument, a leading assignment or a redirection, SHALL count as a command that comes before the commit, unless all it runs is `cat` reading a here-document whose delimiter is quoted, in whole or in part, so that the shell expands nothing in its body. The step SHALL stage nothing when the commit or a command before it reads a here-document whose delimiter is not quoted, because the shell then runs any command substitution in its body. A run that comes again before the same command, as when a call that another hook deferred is resumed, SHALL stage nothing new while the file it staged for that command is still staged and the branch that it was staged for is still checked out there, and when that branch is no longer checked out there, SHALL first take that file back, as the next requirement says. The step SHALL find the worktree where the commit runs from the current directory that the hook's input gives, followed through each top-level `cd` before the commit and through the `-C` options that the commit's own git command is given before `commit`, and never from the directory that the hook runs in, and SHALL stage nothing when such a `-C` option names a path that the command does not write out. It SHALL add the file even when the repository's ignore rules match it, or a sparse checkout leaves its folder out, and when git refuses to add it, the step SHALL remove the file it wrote and stage nothing. It SHALL stage nothing for any other command that runs `git commit`, such as one in a pipeline, run in the background or followed by `&`, because it cannot tell then which branch the commit lands on or when it runs; for a commit that names the paths to commit; for a commit that would otherwise commit nothing, counting the changes to tracked files that `-a` adds, when no `git add`, `git rm` or `git mv` comes before it, so that it fails, or makes the empty commit asked for, as it would without the tool; when a `git rm` or `git mv` before the commit is given a `-C` option that names a path that the command does not write out, or names a path with a wildcard or other pathspec magic, a path that the command does not write out, or the folder that the ledger file is written in or a folder above it, with its paths read from the directory where it runs, after the `cd`s before it and its own `-C` options, because `git rm` then refuses to remove the newly staged file and fails the command, and `git mv` moves it where the step does not look for it; when there is no such call to stage; and when git's attributes for the ledger path, from whichever file git reads them, include a filter or a working-tree encoding, because the commit could then hold something other than the entries as they were written.
+A command runs `git commit` when one of the commands it is made of is `git`, with or without git's own options, followed by the `commit` subcommand, and is not a dry run, which it is when any of `--dry-run`, `--short`, `--porcelain`, `--long`, `-z` and `--null`, in any spelling that git accepts, abbreviated or combined with other short options, is in effect once git has read all of the commit's options, where `--short`, `--porcelain` and `--long` are one setting, which the `--no-` form of any of them clears; a command that only names it, such as in single quotes or as an argument of another command, does not. Before a command that runs `git commit` in this repository, the step SHALL stage, as one new ledger file, the calls recorded in the worktree where the commit runs, while the branch now checked out there was checked out, that no ledger file on that branch holds and that the step has not noted as taken, as the next requirement says, when the commit is one of the command's top-level commands, not part of a pipeline, joined to the others by `&&`, `;` or line breaks, runs in the foreground, and comes after nothing but `cd` to a path that the command writes out and the git commands `add`, `rm`, `mv`, `status`, `diff`, `log` and `show`, with or without git's own options. Each command substitution and process substitution in the commit or in a command before it, whether in an argument, a leading assignment or a redirection, SHALL count as a command that comes before the commit, unless all it runs is `cat` reading a here-document whose delimiter is quoted, in whole or in part, so that the shell expands nothing in its body. The step SHALL stage nothing when the commit or a command before it reads a here-document whose delimiter is not quoted, because the shell then runs any command substitution in its body. A run that comes again before the same command, as when a call that another hook deferred is resumed, SHALL stage nothing new while the file it staged for that command is still staged and the branch that it was staged for is still checked out there, and when that branch is no longer checked out there, SHALL first take that file back, as the next requirement says. The step SHALL find the worktree where the commit runs from the current directory that the hook's input gives, followed through each top-level `cd` before the commit and through the `-C` options that the commit's own git command is given before `commit`, and never from the directory that the hook runs in, and SHALL stage nothing when such a `-C` option names a path that the command does not write out. It SHALL add the file even when the repository's ignore rules match it, or a sparse checkout leaves its folder out, and when git refuses to add it, the step SHALL remove the file it wrote and stage nothing. It SHALL stage nothing for any other command that runs `git commit`, such as one in a pipeline, in a subshell or a group, joined to another command by `||`, behind a wrapper such as `timeout`, run in the background or followed by `&`, because it cannot tell then which branch the commit lands on or when it runs; for a commit that names the paths to commit; for a commit that would otherwise commit nothing, counting the changes to tracked files that `-a` adds, when no `git add`, `git rm` or `git mv` comes before it, so that it fails, or makes the empty commit asked for, as it would without the tool; when a `git rm` or `git mv` before the commit is given a `-C` option that names a path that the command does not write out, or names a path with a wildcard or other pathspec magic, a path that the command does not write out, or the folder that the ledger file is written in or a folder above it, with its paths read from the directory where it runs, after the `cd`s before it and its own `-C` options, because `git rm` then refuses to remove the newly staged file and fails the command, and `git mv` moves it where the step does not look for it; when there is no such call to stage; and when git's attributes for the ledger path, from whichever file git reads them, include a filter or a working-tree encoding, because the commit could then hold something other than the entries as they were written.
 
 #### Scenario: A commit that stages its own files carries a ledger file
 
@@ -296,6 +388,11 @@ A command runs `git commit` when one of the commands it is made of is `git`, wit
 #### Scenario: A commit in the background takes no ledger file
 
 - **WHEN** the agent runs `git commit` in the background, or as `git commit -m x &`
+- **THEN** no ledger file is staged, and the calls wait for a later commit
+
+#### Scenario: A commit in a pipeline, a subshell, a group, joined by `||` or behind a wrapper takes no ledger file
+
+- **WHEN** the agent runs `git commit -m x | cat`, `(git commit -m x)`, `{ git commit -m x; }`, `git commit -m x || echo failed`, `git status || git commit -m x` or `timeout 60 git commit -m x`, with changes staged and calls waiting to be staged
 - **THEN** no ledger file is staged, and the calls wait for a later commit
 
 #### Scenario: A commit with nothing to commit stays empty
@@ -494,7 +591,7 @@ A commit holds a ledger file in a worktree when the commit checked out there hol
 
 ### Requirement: A ledger file is written once
 
-Each ledger file SHALL be a new regular file with a random name, in the ledger folder for the UTC month in which it is written, and SHALL never be changed after it is written: a file that no commit took is removed whole, never edited. The capture step SHALL refuse to write when any folder on the ledger file's path below the repository root is a symbolic link, or when a file of that name already exists. It SHALL stage only the ledger file it wrote.
+Each ledger file SHALL be a new regular file with a random name, in the ledger folder for the UTC month in which it is written, and SHALL never be changed after it is written: a file that no commit took is removed whole, never edited. The capture step SHALL refuse to write when any folder on the ledger file's path below the repository root is a symbolic link, or when a file of that name already exists. It SHALL stage only the ledger file it wrote. It SHALL note a ledger file in its store before it writes it, so that a later run takes back a file that a run killed while writing it left behind, as the requirement above says for a file that no commit took.
 
 #### Scenario: A new file for every commit
 
@@ -511,9 +608,14 @@ Each ledger file SHALL be a new regular file with a random name, in the ledger f
 - **WHEN** the working tree holds other changed files and untracked files
 - **THEN** the ledger file is the only change the step has staged
 
+#### Scenario: A ledger file that a killed run left is taken back
+
+- **WHEN** a run of the step is killed while it writes a ledger file for a `git commit`, and the step's next run finds that command over while no other git command holds the index
+- **THEN** that run takes the file back, from the index and the working tree, and the agent's next commit carries the calls that the file was written for
+
 ### Requirement: Runs at the same time keep every record whole
 
-Two capture steps that run at the same time, such as a session's and a subagent's, or those of two worktrees of one repository, SHALL NOT split or interleave each other's records, and SHALL NOT both record the same call.
+Two capture steps that run at the same time, such as a session's and a subagent's, or those of two worktrees of one repository, SHALL NOT split or interleave each other's records, and SHALL NOT both record the same call. The step SHALL write its store only by replacing it whole, under a lock that the operating system releases when the process that holds it ends, so that a run killed while it writes leaves the store whole and leaves no lock behind.
 
 #### Scenario: Two runs at once
 
@@ -525,18 +627,33 @@ Two capture steps that run at the same time, such as a session's and a subagent'
 - **WHEN** a session in this repository's main folder and a subagent in one of its worktrees both read the subagent's transcript
 - **THEN** each of its calls is recorded once
 
+#### Scenario: A run killed while it writes leaves its store whole
+
+- **WHEN** a run of the step is killed while it writes its store
+- **THEN** the store is whole, as it was before that write or as that write left it, and the next run takes the lock and goes on
+
 ### Requirement: The capture step is one self-contained file
 
-The capture step SHALL be one Python file that imports nothing but Python's standard library, so that it runs in Python's isolated mode, which imports nothing from the file's own folder, and an adopter can copy it into their repository whole.
+The capture step SHALL be one Python file that imports nothing but Python's standard library, so that it runs in Python's isolated mode, which imports nothing from the file's own folder, and an adopter can copy it into their repository whole. Its first line SHALL name the release that it comes from. The step SHALL start no program but git, which it SHALL find at an absolute path, looking only in the folders that the absolute entries of `PATH` name. Before it starts git, it SHALL change its own current directory to a folder that only the system's administrator can write, such as Windows' system folder, and it SHALL name the folder that each git command works in, so that a program planted in Claude's current directory, in the repository's folder or in a folder that a relative entry of `PATH` names is never run. It SHALL read both switches before it starts any program, and a run that finds either off SHALL start git only to note that in its store and to take back and put back what the store notes.
 
 #### Scenario: The capture step runs alone in isolated mode
 
 - **WHEN** the capture step's file is copied into a folder that holds nothing else but a planted `json.py`, and run with `python3 -I`
 - **THEN** it runs, and the planted module is not imported
 
+#### Scenario: The hook file names its release
+
+- **WHEN** the capture step's file at the commit of a release is read
+- **THEN** its first line names that release
+
+#### Scenario: A program planted in the current directory is not run
+
+- **WHEN** the step runs on Windows, with a program named `git` planted in Claude's current directory, in the repository's folder and in a folder that a relative entry of `PATH` names
+- **THEN** the step starts none of them, and records and stages with the git that an absolute entry of `PATH` names
+
 ### Requirement: Capture never breaks or steers the session
 
-A failure inside the capture step SHALL NOT stop or fail the agent's session. The registered command SHALL exit with success even when its script cannot be read or started, in each shell that Claude Code runs a hook's command in: `sh`, Git Bash on Windows, and PowerShell on Windows without Git Bash. The step SHALL print nothing on standard output, SHALL write no text taken from the transcript or the ledger to standard error, and SHALL finish within a time budget, leaving what it has not read for a later run. On failure it SHALL leave the ledger and its own records as they were.
+A failure inside the capture step SHALL NOT stop or fail the agent's session. The registered command SHALL exit with success even when its script cannot be read or started, in each shell that Claude Code runs a hook's command in: `sh`, Git Bash on Windows, and PowerShell on Windows without Git Bash. The registered command SHALL carry the SHA-256 of the hook file that the adopter copied, SHALL read the hook file in the working tree once, and SHALL run what it read only when that matches the checksum, so that a hook file that a checked-out branch changes runs none of its code, and the command then exits with success too. The step SHALL print nothing on standard output and SHALL let no git command that it runs print there, SHALL write to standard error only its own words and numbers, never text taken from the transcript, from a ledger file or its name, or from what a git command printed, and SHALL finish within a time budget, leaving what it has not read for a later run. On failure it SHALL leave the ledger and its own records as they were. The store SHALL carry the version of its format from the first release on, and a run that finds a store whose version it does not know SHALL record, stage, take back and put back nothing, SHALL leave the store as it was, and SHALL exit with success.
 
 #### Scenario: An unreadable transcript is skipped
 
@@ -557,6 +674,26 @@ A failure inside the capture step SHALL NOT stop or fail the agent's session. Th
 
 - **WHEN** a transcript line that cannot be read contains text
 - **THEN** the message on standard error contains none of that text
+
+#### Scenario: A changed hook file is not run
+
+- **WHEN** the hook file in the working tree differs from the one whose checksum the registered command carries, as after a checkout of a branch that changes it
+- **THEN** the registered command runs none of that file's code, prints nothing on standard output and exits with success, in each shell that Claude Code runs a hook's command in
+
+#### Scenario: Nothing that git prints reaches standard output
+
+- **WHEN** a run of the step stages a ledger file, a later run takes a ledger file back, and both read ledger files whose names and contents hold hostile text, on a branch that holds them
+- **THEN** neither run prints anything on standard output, not even what the git commands it runs print, such as the `rm '<path>'` line of `git rm --cached`
+
+#### Scenario: Standard error carries no ledger or transcript text
+
+- **WHEN** a run of the step reads transcript lines and ledger files whose contents or names hold hostile text, some of which it cannot read, and the git commands it runs print messages about them
+- **THEN** nothing that the run writes on standard error contains any of that text, or anything that a git command printed
+
+#### Scenario: A store of a format the step does not know is left alone
+
+- **WHEN** a run of the step finds its store at a format version that it does not know, as one that a later release of the step wrote
+- **THEN** it records, stages, takes back and puts back nothing, leaves the store as it was, and exits with success
 
 #### Scenario: A long transcript does not hold up the session
 

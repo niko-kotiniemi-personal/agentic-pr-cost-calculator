@@ -6,7 +6,7 @@ Turn recorded usage and CI job times into an API-equivalent cost, using the pric
 
 ### Requirement: Prices are dated
 
-The price table SHALL give each price an effective date. A cost SHALL use, for each ledger entry or CI job, the latest price whose effective date is on or before the UTC day the usage happened. An entry whose day has no price yet SHALL be left out of the cost and named, and an entry dated after the day the report runs SHALL be refused.
+The price table SHALL give each price, and each statement of how modifiers combine, an effective date. A cost SHALL use, for each ledger entry or CI job, the latest price, and the latest statement of how modifiers combine, whose effective date is on or before the UTC day the usage happened, so that a row added later reprices nothing earlier. An entry whose day has no price yet SHALL be left out of the cost and named, and an entry dated after the day the report runs SHALL be refused.
 
 #### Scenario: A price change applies from its date
 
@@ -22,6 +22,11 @@ The price table SHALL give each price an effective date. A cost SHALL use, for e
 
 - **WHEN** an entry's day is after the day the report runs
 - **THEN** the entry is refused, and counted as refused
+
+#### Scenario: A changed combination reprices nothing earlier
+
+- **WHEN** the price table adds a statement of how two modifiers combine for a model, dated after the statement before it, and a pull request has calls with both modifiers on the day before that date and on that date
+- **THEN** the earlier calls are priced as the earlier statement says, and the later ones as the new one says
 
 ### Requirement: Every token type is priced at its own rate
 
@@ -39,7 +44,7 @@ Input, output, cache-write and cache-read tokens SHALL each be priced at their o
 
 ### Requirement: Price modifiers are applied or named
 
-A call SHALL be priced with every modifier the price table lists for its model and day: higher rates for a prompt above a length, where a model has them; a multiplier for its inference region; rates for its speed and its service tier; and a per-request rate for server-side tool requests, such as web searches. A prompt's length SHALL count its input, cache-write and cache-read tokens. Modifiers SHALL combine as the price table states. A call with a recorded attribute whose value the price table does not price, or with a combination of attributes the table does not state, SHALL be counted in tokens, left out of the cost and named, as an unknown model is.
+A call SHALL be priced with every modifier the price table lists for its model and day: higher rates for a prompt above a length, where a model has them; a multiplier for its inference region; rates for its speed and its service tier; and a per-request rate for server-side tool requests, such as web searches. A prompt's length SHALL count its input, cache-write and cache-read tokens. Modifiers SHALL combine as the price table's statement for the call's model and day says. A call with a recorded attribute whose value the price table does not price, or with a combination of attributes the table does not state, SHALL be counted in tokens, left out of the cost and named, as an unknown model is.
 
 #### Scenario: A long prompt is priced at its higher rates
 
@@ -66,6 +71,26 @@ A call SHALL be priced with every modifier the price table lists for its model a
 - **WHEN** a call records a speed for which the price table has no rate
 - **THEN** the report shows that call's tokens, leaves it out of the cost, and names the model and that speed
 
+#### Scenario: A fast speed is priced at its premium rates
+
+- **WHEN** a call records a speed for which the price table gives premium rates, as it does for fast mode
+- **THEN** each of that call's token types is priced at that speed's rate
+
+#### Scenario: A service tier is priced at its own rates
+
+- **WHEN** a call records a service tier for which the price table gives rates
+- **THEN** each of that call's token types is priced at that tier's rate
+
+#### Scenario: Modifiers combine as the price table states
+
+- **WHEN** a call's prompt is above its model's long-prompt length, the call records an inference region that has a multiplier and a fast speed, and the price table states how those modifiers combine for its model and day
+- **THEN** the call's cost is what that statement gives
+
+#### Scenario: A combination the price table does not state is named, not guessed
+
+- **WHEN** a call records attributes that call for two modifiers whose combination the price table does not state for its model and day
+- **THEN** the report shows that call's tokens, leaves it out of the cost, and names the model and those attributes
+
 ### Requirement: An unknown model is reported, not guessed
 
 A ledger entry whose model is `unknown`, because the capture step's price table did not list it, or whose model has no price, SHALL be counted in tokens and left out of the cost. The report SHALL name the model, or say that it is unknown, and say that its cost is missing.
@@ -77,7 +102,7 @@ A ledger entry whose model is `unknown`, because the capture step's price table 
 
 ### Requirement: CI minutes are billed per job, rounded up
 
-The CI cost SHALL count every attempt of every job of every workflow run on the pull request's own commits that no push to the default branch started and that was created before the pull request merged. The pull request's own commits are those that its head holds and that the default branch did not hold before the merge, read from git, however many there are. So the runs that the merge's push starts SHALL NOT be counted, even when they run on one of the pull request's own commits, as after a fast-forward, and whatever their creation times; nor SHALL runs on any other commit, such as the new commits that a squash or rebase merge makes. Each attempt's minutes SHALL be its duration rounded up to a whole minute, priced at the rate for its runner type on its UTC day. A job on a runner that the price table does not list SHALL be counted in minutes and left out of the cost, and the report SHALL say how many minutes ran on runners it could not price. If any run or job counted cannot be read, or has not finished, the CI cost SHALL be marked incomplete, and SHALL NOT be presented as the total.
+The CI cost SHALL count every attempt of every job of every workflow run on the pull request's own commits that no push to the default branch started and that was created before the pull request merged. The pull request's own commits are those that its head holds and that the default branch did not hold before the merge, read from git, however many there are. So the runs that the merge's push starts SHALL NOT be counted, even when they run on one of the pull request's own commits, as after a fast-forward, and whatever their creation times; nor SHALL runs on any other commit, such as the new commits that a squash or rebase merge makes. The report SHALL find those runs with the fewest calls to GitHub's API that it can: a listing for each commit, or, where that takes fewer calls and GitHub returns the whole of it, the repository's runs listed page by page, filtered by their event and by when they were created. Each attempt's minutes SHALL be its duration rounded up to a whole minute, priced at the rate for its runner type on its UTC day. A job on a runner that the price table does not list SHALL be counted in minutes and left out of the cost, and the report SHALL say how many minutes ran on runners it could not price. If any run or job counted cannot be read, has not finished, or is left unread because the report's call budget ran out or because GitHub returned only part of a listing, the CI cost SHALL be marked incomplete, and SHALL NOT be presented as the total.
 
 #### Scenario: A job's minutes are rounded up
 
@@ -138,3 +163,13 @@ The CI cost SHALL count every attempt of every job of every workflow run on the 
 
 - **WHEN** a run on one of the pull request's commits has not finished when the report runs
 - **THEN** none of its jobs are counted, and the report marks the CI cost as incomplete
+
+#### Scenario: A pull request with more commits than the call budget allows is marked incomplete
+
+- **WHEN** reading the runs and jobs of a pull request's own commits would take more calls to GitHub's API than the report's call budget leaves
+- **THEN** the report reads no more than the budget allows, marks the CI cost as incomplete, and posts its comment
+
+#### Scenario: A runs listing that GitHub cuts short is not taken as whole
+
+- **WHEN** the repository's runs, filtered by their event and by when they were created, are more than GitHub returns for a filtered listing
+- **THEN** the report reads the runs of the pull request's commits commit by commit instead, and counts every run on those commits that it would count otherwise

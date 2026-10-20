@@ -21,9 +21,21 @@ Usage is recorded by the directory the session is in, not by which files it touc
 
 The figure is an **API-equivalent estimate**, meaning what the same tokens would cost at list prices. It is not a bill: subscription plans and included CI minutes change what you actually pay.
 
+## Documentation
+
+- [How it works](docs/how-it-works.md): the product as a whole, with its flows, how a cost is computed, and every credential, permission and outside connection it uses.
+- [Features](docs/features/README.md): one page per feature, with its expected behaviour.
+- [Requirements](docs/requirements.md): every functional, behavioural and non-functional requirement, indexed to the specs that hold them.
+- [Threat model](docs/threat-model.md): what could go wrong, each threat rated for impact and likelihood, and what answers it.
+- [Changelog](CHANGELOG.md).
+
+## Compatibility and releases
+
+The tool runs on Python 3.11 and every later release, with the standard library only, so it fits into other projects without pulling anything in. The oldest supported version rises only when it nears its end of life. Versions follow [Semantic Versioning](https://semver.org/), and each release on GitHub carries a CycloneDX software bill of materials and names the commit to pin. No version has been released yet.
+
 ## Working on this repository
 
-The rules for contributors, human or agent, are in [`CLAUDE.md`](CLAUDE.md). In short: tests come first, every figure in prose is computed rather than recalled, and scope is never narrowed silently.
+How to contribute is in [`CONTRIBUTING.md`](CONTRIBUTING.md), and the rules for contributors, human or agent, are in [`CLAUDE.md`](CLAUDE.md). Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). In short: tests come first, every figure in prose is computed rather than recalled, and scope is never narrowed silently.
 
 Setup for a local clone:
 

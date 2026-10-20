@@ -8,7 +8,7 @@ We aim to acknowledge a report within a week and will tell you what we decide to
 
 ## Supported versions
 
-There is no release yet. Once there is, fixes go to the latest release only.
+There is no release yet. Once there is, fixes go to the latest release only. The tool supports Python 3.11 and every later release, and each release carries a CycloneDX software bill of materials.
 
 ## What this tool handles
 
