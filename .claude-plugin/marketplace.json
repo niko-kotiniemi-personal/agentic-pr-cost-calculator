@@ -1,0 +1,14 @@
+{
+  "name": "vendored",
+  "description": "Plugins this repository vendors and pins, from local sources only, so a fresh session loads them without an install step.",
+  "owner": {
+    "name": "Niko Kotiniemi"
+  },
+  "plugins": [
+    {
+      "name": "superpowers",
+      "description": "Core skills library for Claude Code, vendored at a pinned upstream sha. See vendor/superpowers/UPSTREAM.lock.",
+      "source": "./vendor/superpowers"
+    }
+  ]
+}

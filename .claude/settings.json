@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "SUPERPOWERS_DISABLE_TELEMETRY": "1",
+    "DO_NOT_TRACK": "1"
+  },
+  "extraKnownMarketplaces": {
+    "vendored": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      },
+      "autoUpdate": false
+    }
+  },
+  "enabledPlugins": {
+    "superpowers@vendored": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh",
+            "timeout": 180,
+            "statusMessage": "Installing the vendored plugin and the pinned tools..."
+          }
+        ]
+      },
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=\"$CLAUDE_PROJECT_DIR\"/vendor/superpowers bash \"$CLAUDE_PROJECT_DIR\"/vendor/superpowers/hooks/run-hook.cmd session-start",
+            "timeout": 30,
+            "statusMessage": "Loading the Superpowers introduction..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+# Agentic PR cost calculator
+
+An open-source tool to estimate what a GitHub pull request cost when it was built with an AI coding agent.
+
+**Status: proposal.** No calculator code exists yet. The design is an OpenSpec change under
+[`openspec/changes/`](openspec/changes/), and code starts once it is approved.
+
+## What it will do
+
+For each pull request, the calculator will:
+
+- capture the tokens the agent spent while its session was working in the repository, per model and by type: input, output, cache writes and cache reads, and carry them to the pull request with the agent's own commits;
+- price them from a dated price table kept in this repository, so the estimate uses the price that applied on the day the tokens were spent;
+- add the GitHub Actions minutes the pull request's CI used, priced at GitHub's published rate;
+- where the data allows, split the cost by activity: code generation, file reading, tooling, MCP calls, subagents and conversation, with any tool it does not know counted as other;
+- post a short report comment when the pull request merges, and keep the usage ledger in the repository as the record.
+
+A repository turns it on or off with one setting, and each person decides for themselves whether their own sessions are recorded.
+
+Usage is recorded by the directory the session is in, not by which files it touches. A session in the repository is recorded there even for work it does on another repository from there, so work on other repositories, private ones above all, belongs in sessions of its own.
+
+The figure is an **API-equivalent estimate**, meaning what the same tokens would cost at list prices. It is not a bill: subscription plans and included CI minutes change what you actually pay.
+
+## Documentation
+
+- [How it works](docs/how-it-works.md): the product as a whole, with its flows, how a cost is computed, and every credential, permission and outside connection it uses.
+- [Features](docs/features/README.md): one page per feature, with its expected behaviour.
+- [Requirements](docs/requirements.md): every functional, behavioural and non-functional requirement, indexed to the specs that hold them.
+- [Threat model](docs/threat-model.md): what could go wrong, each threat rated for impact and likelihood, and what answers it.
+- [Changelog](CHANGELOG.md).
+
+## Compatibility and releases
+
+The tool runs on Python 3.11 and every later release, with the standard library only, so it fits into other projects without pulling anything in. The oldest supported version rises only when it nears its end of life. Versions follow [Semantic Versioning](https://semver.org/), and each release on GitHub carries a CycloneDX software bill of materials and names the commit to pin. No version has been released yet.
+
+## Working on this repository
+
+How to contribute is in [`CONTRIBUTING.md`](CONTRIBUTING.md), and the rules for contributors, human or agent, are in [`CLAUDE.md`](CLAUDE.md). Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md). In short: tests come first, every figure in prose is computed rather than recalled, and scope is never narrowed silently.
+
+Setup for a local clone:
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+npm ci --ignore-scripts
+.venv/bin/pytest
+.venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy
+scripts/verify-openspec.sh
+```
+
+Cloud sessions of Claude Code run the same setup automatically through `.claude/hooks/session-start.sh`.
+
+Two tools are pinned here:
+
+- [OpenSpec](https://github.com/Fission-AI/OpenSpec), installed at an exact version from `package-lock.json`. It holds what the calculator must do.
+- [Superpowers](https://github.com/obra/superpowers), vendored under `vendor/superpowers/` at the commit `UPSTREAM.lock` names. It guides how the code is built. CI checks that the copy matches upstream.
+
+## Security
+
+See [`SECURITY.md`](SECURITY.md) for reporting a vulnerability, and [`docs/threat-model.md`](docs/threat-model.md) for the threats the design answers.
+
+## Licence
+
+[MIT](LICENSE).
