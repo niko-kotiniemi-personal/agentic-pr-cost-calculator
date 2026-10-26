@@ -4,7 +4,9 @@ Two switches decide whether anything is recorded. The repository decides whether
 
 **Status:** designed, not built yet.
 
-**Requirements:** R1, R19
+**Spec:** `switch-and-opt-in`
+
+**Requirements:** R1, R36, R37, R38, R39, R40, R19
 
 ## Expected behaviour
 
@@ -16,7 +18,14 @@ Two switches decide whether anything is recorded. The repository decides whether
 - The report reads `.pr-cost.json` from the default branch as it was before the merge and as it is after, and runs when either turns the tool on. So a pull request cannot turn off its own report, and the pull request that turns the tool on gets one.
 - A pull request that changes `.pr-cost.json`, any workflow file or the hook file has that change flagged in its comment.
 
+## How it is validated
+
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that design decision 8 applies to all the tool's code. Beyond those, this feature has its own:
+
+- Tests that try each way that a repository or its environment could opt a person in, and check that capture stays off: the repository's own git configuration, git's environment variables, an included file, and a relative configuration folder (task 2.4).
+- Tests that the report reads `.pr-cost.json` from before and after the merge, including a file that a pull request makes unreadable (task 4.1).
+
 ## See also
 
-- `cost-reporting` and `usage-capture` in `openspec/` for the full requirements and their scenarios.
+- `switch-and-opt-in` in `openspec/` for the full requirements and their scenarios.
 - Design decision 6 of `add-pr-cost-calculator`.

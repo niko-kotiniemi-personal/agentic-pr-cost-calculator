@@ -26,7 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         # The oldest Python the tool supports, and the newest release. The
-        # oldest rises only when it nears its end of life (design decision 10).
+        # oldest rises only when it nears its end of life, or when a security fix
+        # needs a newer one (design decision 10).
         python-version: ["3.11", "3.x"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

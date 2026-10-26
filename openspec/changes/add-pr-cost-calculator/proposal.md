@@ -14,22 +14,53 @@ Teams that build pull requests with AI coding agents can see what a pull request
 - Code is Python, standard library only, supporting Python 3.11 and every later release, with synthetic test fixtures. It is delivered as a session hook script and a GitHub Actions workflow other repositories can use.
 - A threat model, `docs/threat-model.md`, which every later change revisits. Each threat's answer is a scenario in these specs wherever it can be one, so an acceptance test holds it.
 - Each threat rated for impact and likelihood, from 1 to 3, with a risk matrix, and the threat model revisited by an independent review at design and again at implementation (design decision 9).
-- Releases by semantic version from a tag, each with a CycloneDX bill of materials, and dependency updates that keep the oldest supported Python unless it nears its end of life (design decisions 10 and 11).
-- Documentation that names everything the tool does: a register of the requirements, a page per feature, and a page explaining the tool as a whole, with its flows, credentials, permissions and connections, each checked against the specs and the workflows (design decision 12).
+- Releases by semantic version from a tag, each with a CycloneDX bill of materials, and dependency updates that keep the oldest supported Python unless it nears its end of life or a security fix needs a newer one (design decisions 10 and 11).
+- Documentation that names everything the tool does: a register of the requirements, a page per feature that names its spec's requirements and says how the feature is validated, and a page explaining the tool as a whole, with its flows, credentials, permissions and connections, each checked against the specs and the workflows (design decision 12).
 - Verification that tests everything that can be tested: acceptance tests first, property-based tests, full branch coverage, mutation testing, every check shown to fail, and a review in a separate context before merge (design decision 8).
 
 ## Capabilities
 
+The tool is one product made of nine capabilities, each one spec. Seven are the features that turn a pull request's work into its cost, one is what the tool runs on and how it is released, and one holds the standards for the whole product. Each has a page in `docs/features/` that names its requirements and says how it is validated, and `docs/how-it-works.md` shows how they fit together.
+
 ### New Capabilities
 
+- `switch-and-opt-in`: the file that turns the tool on or off for a repository, and each person's own opt-in to having their sessions recorded.
 - `usage-capture`: recording what an agent session spent, model call by model call, onto the branch it worked on.
-- `cost-pricing`: the dated price table and how a cost is computed from usage and CI job times.
-- `cost-reporting`: the switch, the merge-time comment, and the ledger kept as the record.
-- `project-standards`: the supported Python versions, how dependencies move, releases and their bill of materials, documentation that names everything the tool does, the tool's connections, and the rating of threats.
+- `activity-types`: labelling each recorded call with the kind of work it was part of.
+- `ledger`: the files that carry the counts to the pull request and stay in the repository as its record.
+- `pricing`: the dated price table, and how token usage becomes a cost.
+- `ci-minutes`: the cost of the GitHub Actions minutes that the pull request's own commits used.
+- `report-comment`: the one comment a merged pull request gets, and the trusted code that computes it.
+- `releases-and-compatibility`: the Python and git versions the tool supports, how its dependencies move, and its releases with their bill of materials.
+- `project-standards`: what holds for the whole product: documentation that names everything the tool does, the tool's connections, rated threats, pull request text without private references, and pinned actions.
 
 ### Modified Capabilities
 
 None. This repository has no specs yet.
+
+## How the outcome is validated
+
+Every capability is validated first by its scenarios. Task 1.3 traces each scenario to a test. Task 1.4 writes an acceptance test for each scenario whose code is still to be written, before that code, each seen to fail for its expected reason, and names in its test each scenario that a check already in place holds. The checks of design decision 8 then hold all the tool's code: full branch coverage and mutation testing (task 1.5), the network guard (task 1.6), and property-based tests for its invariants. Beyond those, each capability has its own:
+
+| Capability | Validated beyond its scenarios by |
+|---|---|
+| `switch-and-opt-in` | tests of each way a repository could opt a person in (task 2.4), and of the switch read from before and after the merge (task 4.1) |
+| `usage-capture` | fixtures in each shape Claude Code writes (task 1.1), property tests (task 2.1), tests against real git (task 2.2), the hook run in each shell its registered command meets (task 2.3), and what the README's section on adopting the tool says about git, tested with the runner's git and with git 2.43 (task 4.4) |
+| `activity-types` | fixtures with each kind of tool call and with tools of several types (task 1.1), and the tests of the classification itself (task 2.5) |
+| `ledger` | the format written down first, with a secret scanner's check (task 1.2), boundary tests on the report's side (task 4.2), and one fixture per released format (task 6.4) |
+| `pricing` | checks on every price row (task 3.1), and property tests that a cost is never negative and adds up (task 3.2) |
+| `ci-minutes` | recorded API responses for each way a pull request can merge (task 3.3) |
+| `report-comment` | a property test that no planted string reaches its outputs (task 4.1), tests that it refuses every other event and never shows its token (task 4.3), and the end-to-end run on this repository's own merge (task 7.1) |
+| `releases-and-compatibility` | the version checks already in place (task 1.11), the capture step's floors (task 6.5), a CI job with git 2.43, the oldest git that CI tests (task 4.4), and the release check and bill of materials (tasks 6.1 to 6.3) |
+| `project-standards` | the documentation, threat model and workflow tests already in place (tasks 1.10, 1.12, 1.16 and 1.17), the checks of connections, pull request text and pins (tasks 1.13 to 1.15), and of what the code reads (task 5.3) |
+
+The change as a whole succeeds when:
+
+- the threat model has been reviewed independently at design (task 1.10) and again against what was built (task 5.2);
+- every finding of a review in a context separate from the builder's is fixed or answered (task 5.1);
+- the documentation says what was built, and names every network call and environment variable the code reads (task 5.3);
+- this repository's own merge posts a report whose figures can be recomputed from its ledger, the price table and GitHub's jobs API (task 7.1);
+- and the owner has reviewed and merged it, since nothing merges because an AI reported success.
 
 ## Impact
 

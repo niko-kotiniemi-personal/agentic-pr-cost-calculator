@@ -6,12 +6,17 @@ describes, so that one cannot quietly fall behind:
 - `docs/requirements.md` registers every requirement in the specs, once, with
   its kind. A requirement added to a spec and not to the register is reported,
   and so is a row for a requirement that no spec holds.
-- `docs/features/` has one page per feature. Every functional or behavioural
-  requirement belongs to a feature page, every requirement a page names is in
-  the register, and the index links every page.
+- `docs/features/` has one page per feature, and each feature is one spec. A
+  page is named for its spec, names every requirement that the spec holds and
+  no other, and says how the feature is validated; every spec has a page, and
+  the index links every page.
 - `docs/how-it-works.md` explains the tool as a whole. It names every
   permission that a workflow grants and every action that a workflow runs, and
   draws each flow it lists.
+
+Each change's proposal is checked too: it lists every spec that the change
+holds as a capability, and gives each a row of its own, with a statement, in
+its section on how the outcome is validated.
 """
 
 from __future__ import annotations
@@ -31,6 +36,10 @@ REQUIREMENT = re.compile(r"^### Requirement: (.+?)\s*$", re.M)
 REGISTER_ROW = re.compile(r"^\| (R\d+) \| ([a-z-]+) \| `([a-z0-9-]+)` \| (.+?) \|\s*$", re.M)
 RETIRED_ROW = re.compile(r"^- (R\d+), removed by `([a-z0-9-]+)`", re.M)
 PAGE_REQUIREMENTS = re.compile(r"^\*\*Requirements:\*\* (.+)$", re.M)
+PAGE_SPEC = re.compile(r"^\*\*Spec:\*\* `([a-z0-9-]+)`\s*$", re.M)
+CAPABILITY_LINE = re.compile(r"^- `([a-z0-9-]+)`: ", re.M)
+VALIDATION_ROW = re.compile(r"^\| `([a-z0-9-]+)` \|([^|\n]*)\|", re.M)
+CHANGES = ROOT / "openspec" / "changes"
 REQUIREMENT_ID = re.compile(r"R\d+")
 LINK = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
 USES = re.compile(r"^\s*-?\s*uses:\s*([^\s@#]+)@", re.M)
@@ -95,24 +104,68 @@ def feature_problems(register: str, features: Path) -> list[str]:
         return ["the features folder has no page"]
     problems = []
     linked = {(features / link).resolve() for link in LINK.findall(index.read_text())}
-    covered: set[str] = set()
+    capabilities = {row.capability for row in rows.values()}
+    paged: set[str] = set()
     for page in pages:
+        text = page.read_text(encoding="utf-8")
         if page.resolve() not in linked:
             problems.append(f"{page.name} is not linked from the index")
-        named = PAGE_REQUIREMENTS.findall(page.read_text(encoding="utf-8"))
-        if len(named) != 1:
-            problems.append(f"{page.name} does not have one line naming its requirements")
+        specs = PAGE_SPEC.findall(text)
+        named = PAGE_REQUIREMENTS.findall(text)
+        if len(specs) != 1 or len(named) != 1:
+            problems.append(
+                f"{page.name} does not have one line naming its spec and one its requirements"
+            )
             continue
-        for ident in REQUIREMENT_ID.findall(named[0]):
+        spec = specs[0]
+        if page.stem != spec:
+            problems.append(f"{page.name} is not named for its spec `{spec}`")
+        if spec not in capabilities:
+            problems.append(
+                f"{page.name} names the spec `{spec}`, which the register does not hold"
+            )
+        paged.add(spec)
+        idents = REQUIREMENT_ID.findall(named[0])
+        for ident in idents:
             if ident not in rows:
                 problems.append(f"{page.name} names {ident}, which the register does not hold")
-            covered.add(ident)
+            elif rows[ident].capability != spec:
+                problems.append(
+                    f"{page.name} names {ident}, which `{rows[ident].capability}` holds"
+                )
+        problems += [
+            f"{ident} is not on the page for `{spec}`"
+            for ident, row in rows.items()
+            if row.capability == spec and ident not in idents
+        ]
+        if not section(text, "How it is validated").strip():
+            problems.append(f"{page.name} does not say how it is validated")
     for link in sorted(linked):
         if not link.is_file():
             problems.append(f"the index links {link.name}, which does not exist")
-    for ident, row in rows.items():
-        if row.kind != "non-functional" and ident not in covered:
-            problems.append(f"{ident} belongs to no feature page")
+    for capability in sorted(capabilities - paged):
+        held = ", ".join(ident for ident, row in rows.items() if row.capability == capability)
+        problems.append(f"`{capability}` has no feature page for {held}")
+    return problems
+
+
+def proposal_problems(proposal: str, specs: set[str]) -> list[str]:
+    listed = CAPABILITY_LINE.findall(section(proposal, "Capabilities"))
+    problems = [
+        f"`{name}` is a spec the proposal does not list" for name in sorted(specs - set(listed))
+    ]
+    problems += [
+        f"the proposal lists `{name}`, which has no spec" for name in sorted(set(listed) - specs)
+    ]
+    validated = {
+        name: cell.strip()
+        for name, cell in VALIDATION_ROW.findall(section(proposal, "How the outcome is validated"))
+    }
+    problems += [
+        f"the proposal does not say how `{name}` is validated"
+        for name in sorted(specs)
+        if not validated.get(name)
+    ]
     return problems
 
 
@@ -310,49 +363,73 @@ def test_a_register_out_of_step_with_the_specs_is_reported(
     assert register_problems(register, tmp_path) == expected
 
 
-def synthetic_features(root: Path, index: str, page: str) -> Path:
+PAGE = (
+    "**Spec:** `thing`\n\n**Requirements:** R1, R2\n\n## How it is validated\n\nBy its scenarios.\n"
+)
+
+
+def synthetic_features(root: Path, index: str, page: str, name: str = "thing.md") -> Path:
     features = root / "features"
-    features.mkdir()
+    features.mkdir(parents=True)
     (features / "README.md").write_text(index)
-    (features / "working.md").write_text(page)
+    (features / name).write_text(page)
     return features
 
 
 def test_a_complete_feature_folder_has_no_problem(tmp_path: Path) -> None:
-    features = synthetic_features(tmp_path, "- [Working](working.md)\n", "**Requirements:** R1\n")
+    features = synthetic_features(tmp_path, "- [Thing](thing.md)\n", PAGE)
     assert feature_problems(REGISTER, features) == []
 
 
 @pytest.mark.parametrize(
     ("index", "page", "expected"),
     [
+        ("Nothing linked.\n", PAGE, ["thing.md is not linked from the index"]),
         (
-            "Nothing linked.\n",
-            "**Requirements:** R1\n",
-            ["working.md is not linked from the index"],
+            "- [Thing](thing.md)\n",
+            PAGE.replace("R1, R2", "R1, R2, R9"),
+            ["thing.md names R9, which the register does not hold"],
         ),
         (
-            "- [Working](working.md)\n",
-            "**Requirements:** R1, R9\n",
-            ["working.md names R9, which the register does not hold"],
-        ),
-        (
-            "- [Working](working.md)\n",
-            "No requirements named.\n",
+            "- [Thing](thing.md)\n",
+            PAGE.replace("**Requirements:** R1, R2\n", "No requirements named.\n"),
             [
-                "working.md does not have one line naming its requirements",
-                "R1 belongs to no feature page",
+                "thing.md does not have one line naming its spec and one its requirements",
+                "`thing` has no feature page for R1, R2",
             ],
         ),
         (
-            "- [Working](working.md)\n- [Gone](gone.md)\n",
-            "**Requirements:** R1\n",
+            "- [Thing](thing.md)\n",
+            PAGE.replace("**Spec:** `thing`\n", ""),
+            [
+                "thing.md does not have one line naming its spec and one its requirements",
+                "`thing` has no feature page for R1, R2",
+            ],
+        ),
+        (
+            "- [Thing](thing.md)\n- [Gone](gone.md)\n",
+            PAGE,
             ["the index links gone.md, which does not exist"],
         ),
         (
-            "- [Working](working.md)\n",
-            "**Requirements:** R2\n",
-            ["R1 belongs to no feature page"],
+            "- [Thing](thing.md)\n",
+            PAGE.replace("R1, R2", "R2"),
+            ["R1 is not on the page for `thing`"],
+        ),
+        (
+            "- [Thing](thing.md)\n",
+            PAGE.replace("R1, R2", "R1"),
+            ["R2 is not on the page for `thing`"],
+        ),
+        (
+            "- [Thing](thing.md)\n",
+            PAGE.replace("## How it is validated\n\nBy its scenarios.\n", ""),
+            ["thing.md does not say how it is validated"],
+        ),
+        (
+            "- [Thing](thing.md)\n",
+            PAGE.replace("By its scenarios.\n", ""),
+            ["thing.md does not say how it is validated"],
         ),
     ],
 )
@@ -363,11 +440,113 @@ def test_a_feature_folder_out_of_step_with_the_register_is_reported(
     assert feature_problems(REGISTER, features) == expected
 
 
+def test_a_page_is_named_for_its_spec_and_holds_only_its_spec_requirements(
+    tmp_path: Path,
+) -> None:
+    features = synthetic_features(tmp_path, "- [Other](other.md)\n", PAGE, name="other.md")
+    assert feature_problems(REGISTER, features) == ["other.md is not named for its spec `thing`"]
+    register = REGISTER + "| R3 | functional | `else` | It flies |\n"
+    features = synthetic_features(
+        tmp_path / "b", "- [Thing](thing.md)\n", PAGE.replace("R1, R2", "R1, R2, R3")
+    )
+    assert feature_problems(register, features) == [
+        "thing.md names R3, which `else` holds",
+        "`else` has no feature page for R3",
+    ]
+
+
+def test_a_page_for_a_spec_the_register_does_not_hold_is_reported(tmp_path: Path) -> None:
+    ghost = "**Spec:** `ghost`\n\n**Requirements:** none\n\n## How it is validated\n\nBy review.\n"
+    features = synthetic_features(tmp_path, "- [Ghost](ghost.md)\n", ghost, name="ghost.md")
+    assert feature_problems(REGISTER, features) == [
+        "ghost.md names the spec `ghost`, which the register does not hold",
+        "`thing` has no feature page for R1, R2",
+    ]
+
+
 def test_a_features_folder_without_an_index_or_pages_is_reported(tmp_path: Path) -> None:
     (tmp_path / "features").mkdir()
     assert feature_problems(REGISTER, tmp_path / "features") == ["the features folder has no index"]
     (tmp_path / "features" / "README.md").write_text("Index.\n")
     assert feature_problems(REGISTER, tmp_path / "features") == ["the features folder has no page"]
+
+
+def change_problems(changes: Path) -> list[str]:
+    problems = []
+    for proposal in sorted(changes.rglob("proposal.md")):
+        specs = {spec.parent.name for spec in (proposal.parent / "specs").glob("*/spec.md")}
+        text = proposal.read_text(encoding="utf-8")
+        problems += [f"{proposal.parent.name}: {p}" for p in proposal_problems(text, specs)]
+    return problems
+
+
+def test_each_proposal_lists_its_specs_and_says_how_each_is_validated() -> None:
+    assert list(CHANGES.rglob("proposal.md")), "no proposal was found, so this test covered nothing"
+    problems = change_problems(CHANGES)
+    assert not problems, "\n".join(problems)
+
+
+PROPOSAL = (
+    "## Capabilities\n\n### New Capabilities\n\n- `thing`: does it.\n\n"
+    "## How the outcome is validated\n\n| `thing` | by its scenarios |\n"
+)
+
+
+def test_a_proposal_out_of_step_with_its_specs_is_reported() -> None:
+    assert proposal_problems(PROPOSAL, {"thing"}) == []
+    assert proposal_problems(PROPOSAL, {"thing", "else"}) == [
+        "`else` is a spec the proposal does not list",
+        "the proposal does not say how `else` is validated",
+    ]
+    assert proposal_problems(PROPOSAL, set()) == ["the proposal lists `thing`, which has no spec"]
+
+
+@pytest.mark.parametrize(
+    "row",
+    ["", "| `thing` |  |", "`thing` is not validated yet."],
+    ids=["no row", "an empty row", "a mention that is not a row"],
+)
+def test_a_capability_without_a_validation_row_is_reported(row: str) -> None:
+    unvalidated = PROPOSAL.replace("| `thing` | by its scenarios |", row)
+    assert proposal_problems(unvalidated, {"thing"}) == [
+        "the proposal does not say how `thing` is validated"
+    ]
+
+
+def test_a_capability_listed_outside_its_section_is_not_counted() -> None:
+    elsewhere = PROPOSAL.replace("- `thing`: does it.\n\n", "") + (
+        "\n## Impact\n\n- `thing`: does it.\n"
+    )
+    assert proposal_problems(elsewhere, {"thing"}) == [
+        "`thing` is a spec the proposal does not list"
+    ]
+
+
+def test_a_validation_row_outside_its_section_is_not_counted() -> None:
+    elsewhere = PROPOSAL.replace("| `thing` | by its scenarios |\n", "") + (
+        "\n## Impact\n\n| `thing` | by its scenarios |\n"
+    )
+    assert proposal_problems(elsewhere, {"thing"}) == [
+        "the proposal does not say how `thing` is validated"
+    ]
+
+
+def test_every_change_is_checked_against_its_own_specs(tmp_path: Path) -> None:
+    for name in ("one", "archive/2026-01-01-two"):
+        spec = tmp_path / name / "specs" / "thing" / "spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text("### Requirement: It works\n")
+        (tmp_path / name / "proposal.md").write_text(PROPOSAL)
+    assert change_problems(tmp_path) == []
+    for name in ("one", "archive/2026-01-01-two"):
+        (tmp_path / name / "specs" / "else").mkdir()
+        (tmp_path / name / "specs" / "else" / "spec.md").write_text("### Requirement: It flies\n")
+    assert change_problems(tmp_path) == [
+        "2026-01-01-two: `else` is a spec the proposal does not list",
+        "2026-01-01-two: the proposal does not say how `else` is validated",
+        "one: `else` is a spec the proposal does not list",
+        "one: the proposal does not say how `else` is validated",
+    ]
 
 
 WORKFLOW = """\

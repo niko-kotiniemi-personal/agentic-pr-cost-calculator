@@ -58,7 +58,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** a prompt, a piece of code, a file's contents, a tool's output or a secret is copied into a ledger entry and published with the pull request.
 - **Answer:** entries are built from typed values only. A count is copied as a number. The only text taken from a transcript is the model's name and the values of the price attributes, each only when the price table that the hook ships with lists it, or else recorded as `unknown`, because a private gateway, a custom model or an alias can have a name that looks like one of Anthropic's. Tool names, including MCP server names, which can name a private service, are read only to choose the activity type and are never written.
-- **Held by:** `usage-capture`: "Content in the transcript does not reach the ledger"; `usage-capture`: "A planted string never reaches the ledger"; `usage-capture`: "An unexpected model name is recorded as unknown"; `usage-capture`: "A model name the price table does not list is recorded as unknown"; `usage-capture`: "An attribute value the price table does not list is recorded as unknown"; `usage-capture`: "An MCP call does not record the server's name"
+- **Held by:** `ledger`: "Content in the transcript does not reach the ledger"; `ledger`: "A planted string never reaches the ledger"; `ledger`: "An unexpected model name is recorded as unknown"; `ledger`: "A model name the price table does not list is recorded as unknown"; `ledger`: "An attribute value the price table does not list is recorded as unknown"; `activity-types`: "An MCP call does not record the server's name"
 
 ### T2. Work in another repository is published here
 
@@ -80,7 +80,7 @@ The trust boundaries:
 - **What could happen:** a repository's owner turns the tool on, and the usage of everyone who works there, including outside contributors who never agreed, is committed and published with their pull requests.
 - **Answer:** capture also needs the person's own opt-in, in their global git configuration, which is not part of the repository. It is read from the person's global configuration files, `~/.gitconfig` and git's file in their XDG configuration folder, and not from files that they include, which can lie in a repository's folder. That folder is taken from `XDG_CONFIG_HOME` only when it holds an absolute path, since git reads a relative one from its current directory, which can be in a repository's folder too. The setting is read as git reads it: the last value in a file decides, git's spellings of the section and key count, and a subsection or a comment does not, though only `true`, `yes`, `on`, `1` and the bare key opt a person in, where git also reads other numbers as true. The environment variables that a repository's settings could set, to point git at a file that opts everyone in or to add the setting, are ignored, and a repository's own git configuration can turn it off but not on. The README says what is published when capture is on.
 - **Residual:** a repository's own hooks can run any command on a contributor's machine, including one that changes that setting (see Assumptions). One opt-in covers every repository that uses the tool, until the person turns it off in one.
-- **Held by:** `usage-capture`: "A person who has not opted in is not recorded"; `usage-capture`: "No configuration file means no capture"; `usage-capture`: "A repository's own git configuration cannot opt a person in"; `usage-capture`: "The environment cannot opt a person in"; `usage-capture`: "A setting in an included file does not opt a person in"; `usage-capture`: "The XDG configuration file can opt a person in"; `usage-capture`: "The home configuration file decides when both set it"; `usage-capture`: "A relative XDG folder is not read"; `usage-capture`: "A person can turn capture off in one repository"; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` task 4.4; `usage-capture`: "The last value in a file decides"; `usage-capture`: "Git's spellings of the setting opt a person in"; `usage-capture`: "A subsection or a comment does not opt a person in"; `usage-capture`: "A number other than `1`, or a value that git cannot read, does not opt a person in"
+- **Held by:** `switch-and-opt-in`: "A person who has not opted in is not recorded"; `switch-and-opt-in`: "No configuration file means no capture"; `switch-and-opt-in`: "A repository's own git configuration cannot opt a person in"; `switch-and-opt-in`: "The environment cannot opt a person in"; `switch-and-opt-in`: "A setting in an included file does not opt a person in"; `switch-and-opt-in`: "The XDG configuration file can opt a person in"; `switch-and-opt-in`: "The home configuration file decides when both set it"; `switch-and-opt-in`: "A relative XDG folder is not read"; `switch-and-opt-in`: "A person can turn capture off in one repository"; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` task 4.4; `switch-and-opt-in`: "The last value in a file decides"; `switch-and-opt-in`: "Git's spellings of the setting opt a person in"; `switch-and-opt-in`: "A subsection or a comment does not opt a person in"; `switch-and-opt-in`: "A number other than `1`, or a value that git cannot read, does not opt a person in"
 
 ### T4. An identifier links the ledger to a session or a person
 
@@ -91,7 +91,7 @@ The trust boundaries:
 - **What could happen:** the transcript carries session ids, request ids, the working directory, user names inside paths, and the branch. Any of them in the ledger would link a public record to a person or a private session.
 - **Answer:** a call is identified by a SHA-256 hash of its message id, kept only so that no call is recorded twice. No session value, path, working directory, user name or branch name is written into an entry, and a ledger file's name is random, so that neither an entry nor a file's path carries one.
 - **Residual:** whoever holds the original message ids, such as the session's owner, can match them to entries. That is the person the data came from.
-- **Held by:** `usage-capture`: "Content in the transcript does not reach the ledger"; `usage-capture`: "A planted string never reaches the ledger"; `add-pr-cost-calculator` decision 8
+- **Held by:** `ledger`: "Content in the transcript does not reach the ledger"; `ledger`: "A planted string never reaches the ledger"; `add-pr-cost-calculator` decision 8
 
 ### T5. Call times show when someone works
 
@@ -112,7 +112,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** a transcript in an unexpected shape gives counts as text, fractions, negative numbers, not-a-number, or `true` and `false`, which Python accepts where it expects a number. Recorded as they are, they make the cost wrong.
 - **Answer:** every count must be a whole number from zero up to a documented ceiling, and a count at the ceiling is recorded while one above it, or one that is not a number, is refused. `true` and `false` are refused explicitly. A call with a refused value is left out, and the ledger counts it as refused, so that the comment can say how many were left out. A hook that succeeds shows its standard error to no one, so the count is kept in the ledger and not printed.
-- **Held by:** `usage-capture`: "A count that is not a whole number is refused"; `usage-capture`: "A negative count is refused"; `cost-reporting`: "Calls that capture refused are counted in the comment"; `usage-capture`: "A count at the ceiling is recorded"; `usage-capture`: "A count above the ceiling is refused"; `usage-capture`: "A count that is not a number or is `false` is refused"
+- **Held by:** `usage-capture`: "A count that is not a whole number is refused"; `usage-capture`: "A negative count is refused"; `report-comment`: "Calls that capture refused are counted in the comment"; `usage-capture`: "A count at the ceiling is recorded"; `usage-capture`: "A count above the ceiling is refused"; `usage-capture`: "A count that is not a number or is `false` is refused"
 
 ### T7. One call is counted more than once, or from a partial line
 
@@ -123,7 +123,7 @@ The trust boundaries:
 - **What could happen:** Claude Code can write one model call over several transcript lines. In one shape of subagent transcript, the earlier lines carry partial usage; in another, almost no line gives a stop reason, and each such call's lines give only the usage of its start. Capture also runs again over the same transcript. Counting lines would count a call several times, reading an early line would count it short, and waiting for a stop reason that never comes would leave the call out.
 - **Answer:** a call is recorded once, by the hash of its message id, from its lines that give a stop reason. A call with no such line is read from its last line once a later call follows it or its agent has stopped, and the ledger counts those calls, so that the comment can give their number. A call that is not over yet waits for a later run. Final lines of one call that disagree are refused rather than guessed at.
 - **Residual:** a call read without a stop reason is short: its lines give fewer output tokens and server-side tool requests than it made. When there are any, the comment gives their number and says that the token cost is a lower bound.
-- **Held by:** `usage-capture`: "Running again records nothing twice"; `usage-capture`: "A call written over several lines is recorded once"; `usage-capture`: "A call's partial lines are not used"; `usage-capture`: "A call followed by a later one is read without its stop reason"; `usage-capture`: "A stopped agent's last call is read without its stop reason"; `usage-capture`: "A call still being written is recorded later"; `usage-capture`: "Lines of one call that disagree are refused"; `usage-capture`: "Subagent calls are included"; `cost-reporting`: "Calls read without a stop reason are counted in the comment"
+- **Held by:** `usage-capture`: "Running again records nothing twice"; `usage-capture`: "A call written over several lines is recorded once"; `usage-capture`: "A call's partial lines are not used"; `usage-capture`: "A call followed by a later one is read without its stop reason"; `usage-capture`: "A stopped agent's last call is read without its stop reason"; `usage-capture`: "A call still being written is recorded later"; `usage-capture`: "Lines of one call that disagree are refused"; `usage-capture`: "Subagent calls are included"; `report-comment`: "Calls read without a stop reason are counted in the comment"
 
 ### T8. Usage never reaches the pull request
 
@@ -144,7 +144,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** the price of a call can depend on more than its tokens: a higher rate for a long prompt on some models, a multiplier for the inference region, a premium for a faster speed, and a charge per web search. Ignoring them would under-report without saying so.
 - **Answer:** capture records these attributes where the transcript gives them. Pricing applies every modifier the price table lists, the fast-speed premium and service-tier rates among them, combined as the table states, and names, rather than guesses, any value or combination it has no price for. Web fetches are listed at no charge, so a call that made them is still priced.
-- **Held by:** `usage-capture`: "Price attributes are recorded"; `cost-pricing`: "A long prompt is priced at its higher rates"; `cost-pricing`: "A region multiplier applies to every token type"; `cost-pricing`: "Web searches are priced per search"; `cost-pricing`: "Web fetches add nothing beyond their tokens"; `cost-pricing`: "An unpriced attribute is named, not guessed"; `cost-pricing`: "A fast speed is priced at its premium rates"; `cost-pricing`: "A service tier is priced at its own rates"; `cost-pricing`: "Modifiers combine as the price table states"; `cost-pricing`: "A combination the price table does not state is named, not guessed"
+- **Held by:** `usage-capture`: "Price attributes are recorded"; `pricing`: "A long prompt is priced at its higher rates"; `pricing`: "A region multiplier applies to every token type"; `pricing`: "Web searches are priced per search"; `pricing`: "Web fetches add nothing beyond their tokens"; `pricing`: "An unpriced attribute is named, not guessed"; `pricing`: "A fast speed is priced at its premium rates"; `pricing`: "A service tier is priced at its own rates"; `pricing`: "Modifiers combine as the price table states"; `pricing`: "A combination the price table does not state is named, not guessed"
 
 ## Boundary 2: capture to the repository
 
@@ -167,7 +167,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** a repository can contain symbolic links. If a folder on the ledger's path were a link, writing the ledger would write somewhere else on the machine, such as a shell's start-up file.
 - **Answer:** a ledger file's name is random and is created only if no file of that name exists, and capture refuses any path with a symbolic link in a folder below the repository root. The branch name plays no part in the path.
-- **Held by:** `usage-capture`: "A symbolic link in the ledger path is refused"; `usage-capture`: "A new file for every commit"
+- **Held by:** `ledger`: "A symbolic link in the ledger path is refused"; `ledger`: "A new file for every commit"
 
 ### T12. Capture stages unrelated work
 
@@ -177,7 +177,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** if the step staged more than its own file, unrelated changes, perhaps ones not meant to be shared, would go into the agent's next commit.
 - **Answer:** the step stages exactly the ledger file it wrote.
-- **Held by:** `usage-capture`: "Other changes stay unstaged"
+- **Held by:** `ledger`: "Other changes stay unstaged"
 
 ### T13. Two writers spoil the record
 
@@ -187,7 +187,7 @@ The trust boundaries:
 - **Risk:** 1
 - **What could happen:** a session and its subagents can stop at the same moment, and Claude Code runs matching hooks in parallel. Writes that interleave would split records, and two branches appending to one ledger file would conflict when they merge. A worktree with a store of its own would record again a call that the main folder's store holds, so that it reached two branches.
 - **Answer:** each ledger file is written once, whole, under a new random name, so no two runs or branches write the same file, and runs at the same time keep every record whole and record no call twice. The store lives in the repository's common git directory, which every worktree shares.
-- **Held by:** `usage-capture`: "Two runs at once"; `usage-capture`: "Two worktrees share one record of a call"; `usage-capture`: "A worktree of this repository is this repository"; `usage-capture`: "A new file for every commit"
+- **Held by:** `usage-capture`: "Two runs at once"; `usage-capture`: "Two worktrees share one record of a call"; `usage-capture`: "A worktree of this repository is this repository"; `ledger`: "A new file for every commit"
 
 ### T14. The hook steers or stalls the agent
 
@@ -229,7 +229,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** a ledger line has the wrong types, unknown fields, impossible numbers, a date in the future or before any known price, two versions of one call, or text written to be shown in the comment. One such line could also stop the whole report.
 - **Answer:** the report holds each line to the ledger format that `docs/ledger-format.md` documents and capture writes: whole counts within the ceiling, never `true`, `false`, not-a-number or a number too large to hold, no field given twice, no field the format does not name, no nesting beyond the format's depth, and a day that is a date. It refuses any line that does not match, and says how many it refused, showing none of them. An entry dated after the day the report runs is refused, an entry older than any price is named and left out, and entries of one call that differ are all refused. None of these stops the report.
-- **Held by:** `cost-reporting`: "Refused ledger lines are counted, not shown"; `cost-reporting`: "A name with markup is not shown as written"; `cost-reporting`: "Entries of one call that disagree are refused"; `cost-pricing`: "An entry from the future is refused"; `cost-pricing`: "Usage before any known price is named, not priced"; `cost-reporting`: "A ledger count that is not a whole number within the ceiling is refused"; `cost-reporting`: "A ledger count given as `true` or `false` is refused"; `cost-reporting`: "A ledger count given as not-a-number is refused"; `cost-reporting`: "A ledger count too large to hold is refused"; `cost-reporting`: "A ledger line that gives a field twice is refused"; `cost-reporting`: "A ledger line with a field that the format does not name is refused"; `cost-reporting`: "A ledger line nested too deeply is refused"; `cost-reporting`: "A ledger day that is not a date is refused"; `cost-reporting`: "An unreadable ledger line is counted and the report completes"; `add-pr-cost-calculator` task 4.2
+- **Held by:** `report-comment`: "Refused ledger lines are counted, not shown"; `report-comment`: "A name with markup is not shown as written"; `ledger`: "Entries of one call that disagree are refused"; `pricing`: "An entry from the future is refused"; `pricing`: "Usage before any known price is named, not priced"; `report-comment`: "A ledger count that is not a whole number within the ceiling is refused"; `report-comment`: "A ledger count given as `true` or `false` is refused"; `report-comment`: "A ledger count given as not-a-number is refused"; `report-comment`: "A ledger count too large to hold is refused"; `report-comment`: "A ledger line that gives a field twice is refused"; `report-comment`: "A ledger line with a field that the format does not name is refused"; `report-comment`: "A ledger line nested too deeply is refused"; `report-comment`: "A ledger day that is not a date is refused"; `report-comment`: "An unreadable ledger line is counted and the report completes"; `add-pr-cost-calculator` task 4.2
 
 ### T18. The report reads more than it should
 
@@ -239,7 +239,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** a pull request adds a ledger too large to read in reasonable time or memory, or commits a symbolic link in the ledger folder, which a report reading the working tree would follow to `/dev/zero` or to a file on the runner. Once merged, such a file is also read by the capture step of everyone who works on a branch that holds it, on their own machines.
 - **Answer:** the report and capture read ledger files only as blobs from git, never through the working tree, and learn each blob's size before reading it. The report refuses any added path that is not a regular file, and refuses ledger changes above a documented size bound, while still reporting the CI cost. Capture skips any path that is not a regular file and any file above that bound, and stops at its time budget.
-- **Held by:** `cost-reporting`: "A ledger that is a link is refused"; `cost-reporting`: "An oversized ledger is refused"; `usage-capture`: "Capture reads no ledger file through a link"; `usage-capture`: "Capture does not read an oversized ledger file"
+- **Held by:** `report-comment`: "A ledger that is a link is refused"; `report-comment`: "An oversized ledger is refused"; `usage-capture`: "Capture reads no ledger file through a link"; `usage-capture`: "Capture does not read an oversized ledger file"
 
 ### T19. Entries are counted for the wrong pull request
 
@@ -250,7 +250,7 @@ The trust boundaries:
 - **What could happen:** a branch name used again, or entries copied from another pull request's ledger, would count the same usage twice. A session resumed in a fresh clone at the same path, on another branch, can record calls that an earlier branch's ledger files already hold. A call recorded after a change of branch would go to the branch checked out next. A push that merges several pull requests, as a merge queue can, would charge one of them with the ledgers and runs of all, and a push that adds a commit of no pull request beside a merge would charge that commit's ledger files to the pull request.
 - **Answer:** the report counts only the entries of ledger files that the merge adds, does not count an entry whose call the default branch already held before the merge, and counts a call that the pull request adds twice once. So a call recorded on two branches is counted once, for whichever pull request merges first, and a resumed session records nothing again that its own branch already holds. Capture runs before each of the agent's Bash commands that the hook's condition `Bash(git *)` matches, so a call that the transcript holds as over by then is recorded before the command can change the branch, unless that run reaches its time budget before it reads the call. A push whose commits do not all belong to one pull request, or that merges none, gets no comment, and its job summary says why. This rests on GitHub's lookup of the pull requests associated with a commit behaving as documented (see Assumptions).
 - **Residual:** a call recorded on two branches can be counted for the wrong one of the two pull requests. The call that runs a command that changes the branch, when that command's run cannot yet read it as over, any call that that run leaves unread at its time budget, and calls followed by a change of branch that no command matching the hook's condition makes, go to the branch checked out next. Such a change can be made by a script, by the person, through Claude Code's PowerShell tool, or by git written in a form that the condition does not match: by its path, through `sh -c`, `env` or an environment runner, or through a shell alias or function. A program that git's own options or environment variables in a command name, such as `git -c diff.external=<program> diff` or `GIT_EDITOR=<program> git commit`, can also change the branch before a commit that the step staged for, which then takes the ledger file, with its calls, to the other branch. A ledger file that git carries to another branch, still staged, left in a working tree by a removal, or in a stash, takes its calls into that branch's pull request, as T10 says, and so does one that a command copies there with another commit's changes, as `git cherry-pick -n` does.
-- **Held by:** `cost-reporting`: "A reused branch name is not double-counted"; `cost-reporting`: "A copied entry is counted once"; `cost-reporting`: "One call added twice is counted once"; `cost-reporting`: "A push that merges several pull requests gets no comment"; `cost-reporting`: "A push that adds other commits beside a merge gets no comment"; `usage-capture`: "A resumed session records nothing its branch already holds"; `usage-capture`: "A call made before a checkout stays with its branch"; `cost-reporting`: "A push that merges no pull request gets no comment"; `add-pr-cost-calculator` decision 7
+- **Held by:** `ledger`: "A reused branch name is not double-counted"; `ledger`: "A copied entry is counted once"; `ledger`: "One call added twice is counted once"; `report-comment`: "A push that merges several pull requests gets no comment"; `report-comment`: "A push that adds other commits beside a merge gets no comment"; `usage-capture`: "A resumed session records nothing its branch already holds"; `usage-capture`: "A call made before a checkout stays with its branch"; `report-comment`: "A push that merges no pull request gets no comment"; `add-pr-cost-calculator` decision 7
 
 ### T20. A pull request erases part of the record
 
@@ -260,7 +260,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** the ledger files on the default branch are the record of earlier pull requests, and a later pull request could delete or change them.
 - **Answer:** the deletion or change is in the pull request's diff before it merges. After the merge, its comment says how many earlier ledger files it removed or changed and counts none of their entries, and git history still holds the files as they were. A removal in a push that gets no comment is flagged in that push's job summary instead. A file that comes back later is T47.
-- **Held by:** `cost-reporting`: "Removed or changed ledger files are flagged"; `cost-reporting`: "A removal in a push without a comment is flagged in the job summary"
+- **Held by:** `ledger`: "Removed or changed ledger files are flagged"; `ledger`: "A removal in a push without a comment is flagged in the job summary"
 
 ### T21. A pull request changes its own report
 
@@ -271,7 +271,7 @@ The trust boundaries:
 - **What could happen:** the workflow that runs the report, the tool version it pins and the configuration file are all files in the repository, so a pull request can change them, and its merge is then reported by what it changed. It could turn the tool off to go unreported, or pin a different version of the tool, with different code and prices.
 - **Answer:** the report reads the configuration from the default branch both before and after the merge, and runs if either turns the tool on. When a pull request changes the configuration file or any workflow file, its comment says so, because any workflow can run with the identity that posts the report.
 - **Residual:** a pull request that removes the report's workflow, or points it at code that is not this tool, gets no honest report. A change to a script or a local action that a workflow runs is not flagged, though it can act with the same identity. Each of these is in the pull request's diff, which the owner reviews before merging. A configuration made unreadable is T49, and a merge that a workflow makes is T50.
-- **Held by:** `cost-reporting`: "A pull request cannot turn off its own report"; `cost-reporting`: "A changed report is flagged"; `add-pr-cost-calculator` decision 7
+- **Held by:** `switch-and-opt-in`: "A pull request cannot turn off its own report"; `switch-and-opt-in`: "A changed report is flagged"; `add-pr-cost-calculator` decision 7
 
 ### T22. A large pull request is read only in part
 
@@ -282,7 +282,7 @@ The trust boundaries:
 - **What could happen:** GitHub's API lists at most 3000 files and 250 commits for one pull request, and lists only the latest attempt of each job unless asked for all. A report built on those lists would quietly miss the rest. A squash or rebase merge puts new commits on the default branch, which no CI ran on, so a report that took its commits from the push would find none of the pull request's runs, while the push's own runs are still going when the report runs.
 - **Answer:** the report reads a pull request's changes from git rather than from those capped lists, fetching the default branch's history up to the push and the pull request's head, since a checkout fetches one commit by default, and its own commits from its head ref, `refs/pull/<number>/head`, whatever the merge method. It counts only the runs on those commits that no push to the default branch started and that were created before the pull request merged, so it leaves out the runs that the merge's push starts, even when they run on one of those commits, as after a fast-forward, whatever their creation times, and it asks for every attempt of every job. A run that the merge starts through another event, such as the pull request's `closed` event, is created at the merge or after it, so the time cut leaves it out (see Assumptions). If any data it needs cannot be read in full, or a run it counts has not finished, it marks the figure incomplete instead of presenting part of it as the whole.
 - **Residual:** runs on commits that a force-push removed from the pull request are not counted. The comment says that the CI minutes are those of the pull request's own commits. A pull request based on another one that was merged by squashing or rebasing still holds that one's commits, which the default branch does not hold by their hashes, so it counts their runs again unless it is rebased first. The README says so.
-- **Held by:** `cost-pricing`: "Every commit is counted, beyond what the API lists"; `cost-pricing`: "A squash merge counts the runs on the pull request's commits"; `cost-pricing`: "A rebase merge counts the runs on the pull request's commits"; `cost-pricing`: "Runs that the merge starts are not counted"; `cost-pricing`: "A fast-forward merge counts the pull request's runs, not the push's"; `cost-pricing`: "A run that the pull request's closing starts is not counted"; `cost-pricing`: "A re-run job counts every attempt"; `cost-pricing`: "An incomplete jobs listing is reported as incomplete"; `cost-pricing`: "A run that has not finished makes the cost incomplete"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.3
+- **Held by:** `ci-minutes`: "Every commit is counted, beyond what the API lists"; `ci-minutes`: "A squash merge counts the runs on the pull request's commits"; `ci-minutes`: "A rebase merge counts the runs on the pull request's commits"; `ci-minutes`: "Runs that the merge starts are not counted"; `ci-minutes`: "A fast-forward merge counts the pull request's runs, not the push's"; `ci-minutes`: "A run that the pull request's closing starts is not counted"; `ci-minutes`: "A re-run job counts every attempt"; `ci-minutes`: "An incomplete jobs listing is reported as incomplete"; `ci-minutes`: "A run that has not finished makes the cost incomplete"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.3
 
 ## Boundary 4: report to GitHub
 
@@ -294,7 +294,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** this is the best-known way into a GitHub workflow. A workflow triggered by an outside pull request is given a write token, then runs that pull request's code, which can then use the token. The `pull_request_target` event gives such a token, and GitHub's documentation says to avoid it when a workflow builds or runs the pull request's code.
 - **Answer:** the report runs on the push that a merge makes to the default branch, so it runs only after the owner has merged, and refuses every other event, whatever triggered the workflow that calls it: it goes on only when the event is `push` and the ref is `refs/heads/` followed by the default branch's name, so a tag named like the default branch is refused too. It checks out its own code at the commit its caller pins, by the `job` context's workflow repository and commit, and reads the pull request's files only as data, never running, importing or installing anything from them.
-- **Held by:** `cost-reporting`: "Nothing from the pull request is run"; `cost-reporting`: "Another event is refused"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.3; `cost-reporting`: "A tag named like the default branch is refused"
+- **Held by:** `report-comment`: "Nothing from the pull request is run"; `report-comment`: "Another event is refused"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.3; `report-comment`: "A tag named like the default branch is refused"
 
 ### T24. The token can do more than the report needs, or leaks
 
@@ -304,7 +304,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** a token with wider permissions than the report needs turns any bug into a bigger one, and a token printed to a public log can be used until the job ends.
 - **Answer:** the reusable workflow declares only reading the repository and its Actions data and writing pull request comments, which a caller can narrow but not widen. Its checkout does not keep the token, and the report never writes the token to its log, its job summary or its comment.
-- **Held by:** `cost-reporting`: "The token never reaches the output"; `add-pr-cost-calculator` task 4.3
+- **Held by:** `report-comment`: "The token never reaches the output"; `add-pr-cost-calculator` task 4.3
 
 ### T25. The report overwrites someone else's comment
 
@@ -315,7 +315,7 @@ The trust boundaries:
 - **What could happen:** the report finds its earlier comment by a hidden marker, and anyone can paste that marker into a comment of their own.
 - **Answer:** the report updates only a comment that its own identity wrote.
 - **Residual:** other workflows in the same repository that use `GITHUB_TOKEN` comment under the same identity, and could edit the report's comment after it is posted. A pull request that adds or changes a workflow has that flagged in its own comment (T21), and one that changes only a script or a local action that a workflow runs does not.
-- **Held by:** `cost-reporting`: "A planted marker does not redirect the update"; `cost-reporting`: "A changed report is flagged"
+- **Held by:** `report-comment`: "A planted marker does not redirect the update"; `switch-and-opt-in`: "A changed report is flagged"
 
 ## Boundary 5: comment to readers
 
@@ -327,7 +327,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** model names, runner labels, file names, branch names and job names come from data that contributors control. Echoed into a Markdown comment, they could carry links, images that track who reads them, @-mentions that notify people, or text that looks like the report's own.
 - **Answer:** the comment holds numbers, its own fixed text, and model, attribute and runner names that the price table lists, shown as code. A ledger line that names a model or an attribute value the table does not list, other than `unknown`, is refused, and a job on a runner the table does not list is counted in minutes and left out of the cost, unnamed. An entry's day reaches the comment only as a date, since a ledger line whose day is not one is refused. Nothing else from the ledger, the pull request or the jobs API reaches the comment. The job summary and the log are T52.
-- **Held by:** `cost-reporting`: "A name with markup is not shown as written"; `cost-reporting`: "A runner label with markup is not shown"; `cost-reporting`: "Refused ledger lines are counted, not shown"; `cost-pricing`: "A job on a runner the price table does not list is not priced"; `cost-reporting`: "A ledger day that is not a date is refused"
+- **Held by:** `report-comment`: "A name with markup is not shown as written"; `report-comment`: "A runner label with markup is not shown"; `report-comment`: "Refused ledger lines are counted, not shown"; `ci-minutes`: "A job on a runner the price table does not list is not priced"; `report-comment`: "A ledger day that is not a date is refused"
 
 ### T27. The comment claims more than the estimate supports
 
@@ -337,7 +337,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** a reader takes the figure as a bill, or cannot tell how it was reached.
 - **Answer:** the comment says it is an API-equivalent estimate and not a bill, and names the price table's date and the tool's version, so anyone can recompute it from the ledger.
-- **Held by:** `cost-reporting`: "The comment says what the figure is"
+- **Held by:** `report-comment`: "The comment says what the figure is"
 
 ## Boundary 6: tool to adopters
 
@@ -350,7 +350,7 @@ The trust boundaries:
 - **What could happen:** a malicious change to this repository, or to something it depends on, runs on adopters' machines through the hook and in their CI through the workflow. The hook is a file that adopters copy, so how it reaches them is part of this.
 - **Answer:** the tool has no runtime dependencies beyond Python's standard library. The hook is one file that imports nothing else, which an adopter copies from the full commit that their calling workflow pins, not from a tag, which can be moved, and checks against the checksum that the README at that commit gives and the hook registration carries, which a test holds to the file's SHA-256; after that, it changes in their repository only through their own review. The actions the tool's workflows use are pinned to commits, the image that one CI job runs git 2.43 in is pinned to its digest, and the README's calling workflow pins the tool to a full commit that a release of this repository names, not a branch. A release is made only from a commit in the default branch's first-parent history, and only an identity that agent sessions never hold can create a tag (T67). Changes reach `main` only through pull requests that pass CI, and the owner merges them. Development tools are pinned to exact versions, with their own dependencies locked and hashed, and Renovate proposes an update that it can date only after it has been out for 14 days, while it lets a vulnerability fix through at once.
 - **Residual:** the checksum comes from the same commit as the file, so it shows that a copy is whole, not that the commit is honest. That rests on the adopter's choice of commit, as it does for the workflow; a commit that only a fork holds is T58.
-- **Held by:** `usage-capture`: "The capture step runs alone in isolated mode"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` decision 2; `add-pr-cost-calculator` task 1.8; `add-pr-cost-calculator` task 4.4; `tests/test_repository.py`; `renovate.json`; `project-standards`: "A tag on a commit outside the default branch's first-parent history is refused"; `project-standards`: "A vulnerability fix is not held back"
+- **Held by:** `usage-capture`: "The capture step runs alone in isolated mode"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` decision 2; `add-pr-cost-calculator` task 1.8; `add-pr-cost-calculator` task 4.4; `tests/test_repository.py`; `renovate.json`; `releases-and-compatibility`: "A tag on a commit outside the default branch's first-parent history is refused"; `releases-and-compatibility`: "A vulnerability fix is not held back"
 
 ### T29. An adopter's workflow calls the report unsafely
 
@@ -360,7 +360,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** a reusable workflow runs with its caller's event and token. An adopter could call the report from a `pull_request_target` workflow, grant it every permission, or pass it every secret with `secrets: inherit`.
 - **Answer:** the report refuses every event but a push to the default branch, declares the permissions it needs, and asks for no secret. The README's calling workflow grants those permissions only and passes no secrets, and a test holds that snippet.
-- **Held by:** `cost-reporting`: "Another event is refused"; `cost-reporting`: "No secret is configured"; `add-pr-cost-calculator` task 4.3; `add-pr-cost-calculator` task 4.4
+- **Held by:** `report-comment`: "Another event is refused"; `report-comment`: "No secret is configured"; `add-pr-cost-calculator` task 4.3; `add-pr-cost-calculator` task 4.4
 
 ### T30. A price is changed to misreport
 
@@ -371,7 +371,7 @@ The trust boundaries:
 - **What could happen:** a pull request changes a price so that reports come out lower or higher.
 - **Answer:** the price table ships with the pinned tool, so changing it in an adopting repository means pinning a different tool, which T21 covers. In this repository, each price row names its source page, the statements of how modifiers combine are dated like prices, and a test fails when a pull request changes or removes an existing row, or adds one dated on or before the newest row for the same price.
 - **Residual:** a new row dated after the newest row, but before the day its pull request merges, changes what the usage between those two days costs. That row is in the pull request's diff, with its source page, for review.
-- **Held by:** `add-pr-cost-calculator` task 3.1; `cost-reporting`: "A changed report is flagged"; `cost-pricing`: "A changed combination reprices nothing earlier"; `add-pr-cost-calculator` task 3.2
+- **Held by:** `add-pr-cost-calculator` task 3.1; `switch-and-opt-in`: "A changed report is flagged"; `pricing`: "A changed combination reprices nothing earlier"; `add-pr-cost-calculator` task 3.2
 
 ### T31. An adopter publishes more than they expect
 
@@ -460,7 +460,7 @@ The trust boundaries:
 - **What could happen:** every run reads a transcript on from where the last one stopped, and a run that finds capture off reads nothing. When the person opts in, opts back in, or the tool is turned on, the next run would read on from the old position, or from the start of a transcript it has never read, and record calls made while capture was off. Calls recorded before an opt-out could still be staged at the next commit, and a switch check that also stopped take-backs would leave a staged file in place, with T10's disturbances. The harm is greater when those calls are the work on another repository that T2 says to keep out.
 - **Answer:** the store notes, for each session, each run that finds both switches on and each that finds either off, and the step records only the calls whose transcript time falls inside an interval when both were on. A run that finds the person's own capture off ends that interval for every session the store notes, and no call made before that run is staged after it. Taking back and putting back ledger files does not wait on the switches.
 - **Residual:** a run with capture off creates the store, in the git directory, even for someone who has not opted in; nothing in it leaves that directory. The step cannot tell when a setting changed between two runs, so a person who opts in during a session, before its first run, has that session's calls recorded from its start, as the design's risks say.
-- **Held by:** `usage-capture`: "Calls made before a person opts in are not recorded"; `usage-capture`: "Calls made while capture was off are not recorded when it is on again"; `usage-capture`: "Calls recorded before an opt-out are not staged"; `usage-capture`: "A file staged before capture is turned off is still taken back"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` task 2.4
+- **Held by:** `switch-and-opt-in`: "Calls made before a person opts in are not recorded"; `switch-and-opt-in`: "Calls made while capture was off are not recorded when it is on again"; `switch-and-opt-in`: "Calls recorded before an opt-out are not staged"; `switch-and-opt-in`: "A file staged before capture is turned off is still taken back"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` task 2.4
 
 ### T39. A usage field the step does not know is dropped, or refuses every call
 
@@ -470,7 +470,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** Claude Code adds a field to a call's usage. A step that refused unknown shapes would refuse every call after that update, and one that kept only the fields it knows would silently drop a new price-bearing one, such as a new server tool's request count or a new cache tier, which is T9's harm in a copied hook that no fixture has caught up with.
 - **Answer:** the step reads the fields it knows and counts the calls whose usage has a field it does not, at its top level or in a block nested in it. The comment gives that count and says the token cost may be low.
-- **Held by:** `usage-capture`: "A usage field the step does not know is counted"; `cost-reporting`: "Calls with a usage field that capture does not know are counted in the comment"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` task 1.1; `add-pr-cost-calculator` task 1.2; `add-pr-cost-calculator` task 4.1
+- **Held by:** `usage-capture`: "A usage field the step does not know is counted"; `report-comment`: "Calls with a usage field that capture does not know are counted in the comment"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` task 1.1; `add-pr-cost-calculator` task 1.2; `add-pr-cost-calculator` task 4.1
 
 ### T40. Model calls that Claude Code makes for its own tools are missing
 
@@ -481,7 +481,7 @@ The trust boundaries:
 - **What could happen:** some of Claude Code's own tools, such as WebFetch, answer with a small model of their own. If those calls are not written to the transcript with their usage, capture never sees them, and the figure is low without saying so.
 - **Answer:** task 1.1 checks which of Claude Code's own model calls the transcript records. The comment says what the figure is, and the README says that calls Claude Code makes for its own tools without writing them to the transcript are not counted.
 - **Residual:** such calls, if any, are left out of the figure; the report says so rather than estimating them.
-- **Held by:** `cost-reporting`: "The comment says what the figure is"; `add-pr-cost-calculator` task 1.1; `add-pr-cost-calculator` task 4.4
+- **Held by:** `report-comment`: "The comment says what the figure is"; `add-pr-cost-calculator` task 1.1; `add-pr-cost-calculator` task 4.4
 
 ### T41. On Windows, the step reads another home folder than git does
 
@@ -491,7 +491,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** on Windows, Python's home folder comes from the user's profile and ignores `HOME`, while git reads `~/.gitconfig` from `HOME`. A person who sets `HOME` would opt in or out in a file the step does not read, and a relative value would point at a file inside the repository.
 - **Answer:** the step finds the home folder the way git for Windows does: `HOME` when it is absolute and not the system folder, and the profile folder otherwise, never a relative path.
-- **Held by:** `usage-capture`: "The home folder is the one git reads on Windows"; `usage-capture`: "A relative home folder is not read"; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` task 2.4
+- **Held by:** `switch-and-opt-in`: "The home folder is the one git reads on Windows"; `switch-and-opt-in`: "A relative home folder is not read"; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` task 2.4
 
 ### T42. One run stops later runs from making progress, or loses a call
 
@@ -502,7 +502,7 @@ The trust boundaries:
 - **What could happen:** Claude Code writes the transcript asynchronously, so the last line may be half-written when a run reads it, and a run that moved past it would lose that call. A line too long to read within a run's budget would stop every later run at the same place. A run killed at its timeout while it writes could leave the store torn, its lock held, or a ledger file staged that nothing notes.
 - **Answer:** a run reads only complete lines and leaves a half-written last line for a later run. A line that a whole budget cannot read is skipped and counted. The store is replaced whole, under a lock that the operating system releases when the process dies, and a ledger file is noted in the store before it is written, so a later run takes back a file that a killed run left.
 - **Residual:** how large the store grows is measured, not bounded, as the design's risks say.
-- **Held by:** `usage-capture`: "A half-written last line waits for a later run"; `usage-capture`: "A line too long for a run's budget is skipped and counted"; `usage-capture`: "A run killed while it writes leaves its store whole"; `usage-capture`: "A ledger file that a killed run left is taken back"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` task 2.1; `add-pr-cost-calculator` task 2.2
+- **Held by:** `usage-capture`: "A half-written last line waits for a later run"; `usage-capture`: "A line too long for a run's budget is skipped and counted"; `usage-capture`: "A run killed while it writes leaves its store whole"; `ledger`: "A ledger file that a killed run left is taken back"; `add-pr-cost-calculator` decision 1; `add-pr-cost-calculator` task 2.1; `add-pr-cost-calculator` task 2.2
 
 ## Boundary 2, continued: found at the design review
 
@@ -558,7 +558,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** reverting a merged pull request removes its ledger files, and a revert of that revert, or a pull request that restores erased files, adds them back. Compared only with the commit before the merge, the re-landing pull request would be charged the earlier one's usage, and a branch name used again after its old files left would have them counted again too.
 - **Answer:** the report counts no entry whose call any ledger file in the default branch's first-parent history held before the merge, and counts such files as restored.
-- **Held by:** `cost-reporting`: "A ledger file that a revert brings back is not counted again"; `add-pr-cost-calculator` decision 3; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.2
+- **Held by:** `ledger`: "A ledger file that a revert brings back is not counted again"; `add-pr-cost-calculator` decision 3; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.2
 
 ### T48. A ledger file already merged stops or slows every later report
 
@@ -568,7 +568,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** to skip calls that the default branch already holds, the report reads every ledger file there. A file that an earlier report refused, oversized, a submodule or with an unreadable line, can still have been merged, and every later report would then read it.
 - **Answer:** the report holds files that the default branch already holds to capture's rules: it skips a path that is not a regular file and a file above the per-file bound, and skips an unreadable line without stopping. Such a line is counted neither as an entry nor as refused, so that later pull requests' comments do not repeat a refusal that is not theirs.
-- **Held by:** `cost-reporting`: "An oversized ledger file that the default branch holds does not stop the report"; `cost-reporting`: "A submodule in the default branch's ledger folder does not stop the report"; `cost-reporting`: "An unreadable line in an earlier ledger file does not stop the report"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.2
+- **Held by:** `report-comment`: "An oversized ledger file that the default branch holds does not stop the report"; `report-comment`: "A submodule in the default branch's ledger folder does not stop the report"; `report-comment`: "An unreadable line in an earlier ledger file does not stop the report"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.2
 
 ### T49. A pull request makes the configuration unreadable and goes unreported
 
@@ -578,7 +578,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** a report that stopped on a malformed, oversized, linked or otherwise unreadable `.pr-cost.json` after the merge would post nothing, not even the notice that the pull request changed its report, so one changed file would undo T21's answer without touching a workflow.
 - **Answer:** the configuration is read only as a blob at each commit, within a small bound, and a missing, non-regular, oversized or unparseable file counts as not turning the tool on at that commit, without stopping the report. The change is flagged. Capture treats a configuration file that is not a regular file as turning capture off.
-- **Held by:** `cost-reporting`: "A pull request that makes the configuration unreadable still gets its report"; `usage-capture`: "A configuration file that is not a regular file turns capture off"; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.1
+- **Held by:** `switch-and-opt-in`: "A pull request that makes the configuration unreadable still gets its report"; `switch-and-opt-in`: "A configuration file that is not a regular file turns capture off"; `add-pr-cost-calculator` decision 6; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.1
 
 ### T50. A merge that a workflow makes gets no report, and nothing says so
 
@@ -601,7 +601,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** the report looks up the pull request for each commit a push adds, and lists the runs and every job attempt on each of the pull request's commits, whose number the author sets. `GITHUB_TOKEN`'s request limit is shared by every workflow in the repository, so a pull request with enough commits would use it up and make other workflows' API calls fail, and a job with no time limit could run on. GitHub also cuts a filtered runs listing short.
 - **Answer:** the report keeps to a documented call budget and its job has a `timeout-minutes`. A pull request with more commits than the budget allows has its CI cost marked incomplete, and a push with more commits than it allows gets no comment. A runs listing that GitHub cuts short is not taken as whole.
-- **Held by:** `cost-pricing`: "A pull request with more commits than the call budget allows is marked incomplete"; `cost-pricing`: "A runs listing that GitHub cuts short is not taken as whole"; `cost-reporting`: "A push with more commits than the call budget allows gets no comment"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 3.3; `add-pr-cost-calculator` task 4.3; `add-pr-cost-calculator` task 4.4
+- **Held by:** `ci-minutes`: "A pull request with more commits than the call budget allows is marked incomplete"; `ci-minutes`: "A runs listing that GitHub cuts short is not taken as whole"; `report-comment`: "A push with more commits than the call budget allows gets no comment"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 3.3; `add-pr-cost-calculator` task 4.3; `add-pr-cost-calculator` task 4.4
 
 ## Boundary 5, continued: found at the design review
 
@@ -613,7 +613,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** the report also writes a job summary, which is rendered as Markdown for anyone who can see the run, and a log, from which GitHub reads workflow commands. A ledger line, a path, which git allows to hold a line break, or API text echoed there would put someone else's text, or a workflow command, under the report's name.
 - **Answer:** the rule that the comment shows only what the report computed covers the job summary and the log too, workflow commands included, and so does the rule that the token never reaches the output. The property test over planted strings covers all three.
-- **Held by:** `cost-reporting`: "A name with markup is not shown as written"; `cost-reporting`: "A runner label with markup is not shown"; `cost-reporting`: "Refused ledger lines are counted, not shown"; `cost-reporting`: "The token never reaches the output"; `add-pr-cost-calculator` decision 8; `add-pr-cost-calculator` task 4.1
+- **Held by:** `report-comment`: "A name with markup is not shown as written"; `report-comment`: "A runner label with markup is not shown"; `report-comment`: "Refused ledger lines are counted, not shown"; `report-comment`: "The token never reaches the output"; `add-pr-cost-calculator` decision 8; `add-pr-cost-calculator` task 4.1
 
 ## Boundary 6, continued: found at the design review
 
@@ -625,7 +625,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** adopters' update bots treat minor and patch releases as safe. A public surface that left out what adopters depend on, such as the opt-in key, the ledger path, the workflow's path or the floors, or a version check that trusted the changelog's own label, would let a breaking change through, and a newer report that could not read what an older hook wrote would break the common case of a pin updated before the copied hook.
 - **Answer:** the public surface names everything adopters configure or depend on, a manifest of it is kept in the repository, and the release check compares it between the previous release's commit and the tag, refusing a release whose surface changed without a raised major number and a `### Breaking` section. A newer report reads every ledger format that an earlier release's hook wrote, with one fixture per released format.
-- **Held by:** `project-standards`: "A changed public surface needs a major version"; `project-standards`: "A breaking change raises the major version"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.1; `add-pr-cost-calculator` task 6.4
+- **Held by:** `releases-and-compatibility`: "A changed public surface needs a major version"; `releases-and-compatibility`: "A breaking change raises the major version"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.1; `add-pr-cost-calculator` task 6.4
 
 ### T54. An update bot moves the workflow pin and leaves the hook behind
 
@@ -636,7 +636,7 @@ The trust boundaries:
 - **What could happen:** once releases exist, bots that follow tags can propose a new commit for the calling workflow's pin, but cannot change the copied hook file, so the hook and the report drift apart: models are recorded as `unknown`, lines are refused, and nothing says why. A fix also reaches only adopters who move both.
 - **Answer:** the hook file names its release in its first line, the comment says when the hook in the merged commit differs from the one at the report's own commit, quoting nothing from the file, and the README tells adopters to update the file, its checksum and the pin together, in one pull request.
 - **Residual:** an adopter who updates only the pin gets a comment that says so, not a fixed hook. No advisory process for security fixes is designed yet.
-- **Held by:** `usage-capture`: "The hook file names its release"; `cost-reporting`: "A hook from another commit than the report's is named"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 2.3; `add-pr-cost-calculator` task 4.4
+- **Held by:** `usage-capture`: "The hook file names its release"; `report-comment`: "A hook from another commit than the report's is named"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 2.3; `add-pr-cost-calculator` task 4.4
 
 ### T55. Copies of the oldest supported Python drift apart
 
@@ -646,7 +646,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** the oldest supported Python is stated in many files, and a CI matrix check that counted entries rather than distinct versions would pass a matrix that tests one version twice. Copies that disagree would tell adopters one floor and test another.
 - **Answer:** `requires-python` is the one source, and a test fails when any other copy disagrees, or when the CI matrix lacks either the oldest version or the newest release.
-- **Held by:** `project-standards`: "Declared versions that disagree are reported"; `add-pr-cost-calculator` decision 10; `add-pr-cost-calculator` task 1.11; `tests/test_repository.py`
+- **Held by:** `releases-and-compatibility`: "Declared versions that disagree are reported"; `add-pr-cost-calculator` decision 10; `add-pr-cost-calculator` task 1.11; `tests/test_repository.py`
 
 ### T56. The hook runs under a Python or git older than CI tests
 
@@ -656,7 +656,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** the hook is a copied file, so nothing installs it under a supported Python: it runs with whatever `python3` the machine has, and its command hides a failure. The design relies on git's behaviour in detail, and a run under an older git that behaves differently could misrecord calls or leave the index changed.
 - **Answer:** the step checks, before anything else, that Python is 3.11 or later, and before its first other git command that git is 2.43 or later, the oldest git that CI tests. Below either floor it records nothing, stages nothing, prints nothing and exits with success. Both floors are part of the public surface.
-- **Held by:** `project-standards`: "An older Python is refused quietly"; `project-standards`: "An older git is refused quietly"; `add-pr-cost-calculator` decision 10; `add-pr-cost-calculator` decision 11
+- **Held by:** `releases-and-compatibility`: "An older Python is refused quietly"; `releases-and-compatibility`: "An older git is refused quietly"; `add-pr-cost-calculator` decision 10; `add-pr-cost-calculator` decision 11
 
 ### T57. The documentation check passes while the page is wrong
 
@@ -676,7 +676,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** GitHub resolves a commit id in `uses:` across the repository's fork network and serves a fork's commits under this repository's address, so a commit that only a fork holds would run as this tool. A pull request to the adopter that "updates the pin", or a fork's own release page, could point an adopter at one, and that commit's README checksum matches its own hook.
 - **Answer:** the README tells adopters to pin only a commit that a release of this repository names, and to check it in a clone of this repository with `git merge-base --is-ancestor <commit> origin/main`, which fails for a commit that only a fork holds. A release names only a commit in the default branch's first-parent history.
-- **Held by:** `project-standards`: "A tag on a commit outside the default branch's first-parent history is refused"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 4.4
+- **Held by:** `releases-and-compatibility`: "A tag on a commit outside the default branch's first-parent history is refused"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 4.4
 
 ### T59. Checking out an untrusted branch runs that branch's hook file
 
@@ -697,7 +697,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** a pull request edits the adopter's own copy of the hook, to drop calls or scale counts, and changes every later pull request's figures, while the comment flagged only workflow and configuration changes.
 - **Answer:** the hook file's path is fixed by the README, a pull request that changes it has that flagged in its comment, and a hook that differs from the one at the report's own commit is named.
-- **Held by:** `cost-reporting`: "A changed report is flagged"; `cost-reporting`: "A hook from another commit than the report's is named"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.4
+- **Held by:** `switch-and-opt-in`: "A changed report is flagged"; `report-comment`: "A hook from another commit than the report's is named"; `add-pr-cost-calculator` decision 7; `add-pr-cost-calculator` task 4.4
 
 ## Boundary 7, continued: found at the design review
 
@@ -777,7 +777,7 @@ The trust boundaries:
 - **What could happen:** GitHub runs the release workflow as it stands at the tagged commit, so a tag on a commit outside `main` runs that commit's own check, and any identity with `contents: write` can create a release and its tag through the API with no workflow at all. A commit from inside a merged pull request is held by the default branch, though `main` never had that state. Adopters pin what a release names.
 - **Answer:** a release is made only from a tag that names a commit in the default branch's first-parent history, which is a guard against mistakes, not the control. The control is who can create a tag or a release: a tag ruleset whose only bypass is an identity that agent sessions never hold, and immutable releases (see Settings the owner keeps). The release's text names the tag and the commit in the workflow's own fixed words. `CLAUDE.md` says that agents never create, move or delete a tag or a release.
 - **Residual:** the ruleset and immutable releases are the owner's settings, and no test reads them.
-- **Held by:** `project-standards`: "A tag on a commit outside the default branch's first-parent history is refused"; `project-standards`: "A tag that matches the version and the changelog is released"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.1; `CLAUDE.md`
+- **Held by:** `releases-and-compatibility`: "A tag on a commit outside the default branch's first-parent history is refused"; `releases-and-compatibility`: "A tag that matches the version and the changelog is released"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.1; `CLAUDE.md`
 
 ### T68. The release job's write token runs someone else's code
 
@@ -787,7 +787,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** the job that holds `contents: write` installs a package, restores a cache that another workflow wrote, keeps the checkout's token, or passes a tag name or changelog text to a shell inside `${{ }}`, where git allows shell characters in tag names.
 - **Answer:** the release job alone holds `contents: write`, runs only for a pushed tag, checks the tag's form before any other step, installs nothing, restores no cache, checks out without keeping credentials, runs only `python3 -I` on the tagged commit's standard-library scripts and actions pinned by commit, and passes event data only through `env:`. It needs a read-only job that runs the tests on the oldest and newest Python. Actions' default workflow permissions stay read-only as a backstop (see Settings the owner keeps).
-- **Held by:** `project-standards`: "A tag that is not a semantic version stops the workflow first"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.3
+- **Held by:** `releases-and-compatibility`: "A tag that is not a semantic version stops the workflow first"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.3
 
 ### T69. The bill of materials misstates what a release holds and runs
 
@@ -797,7 +797,7 @@ The trust boundaries:
 - **Risk:** 2
 - **What could happen:** a bill of materials that named no run-time component would leave out the actions that the report runs, and the vendored and generated parts that GitHub's source archive of every release holds. One written from a working tree could pick up untracked files or runner paths, and its hook checksum could differ from the file's.
 - **Answer:** the bill of materials is written from the tagged tree, never from a working tree, and names the tool, its version, commit and licence, the oldest supported Python, the hook file's SHA-256, each action the reusable workflow uses at its pinned commit, and the vendored and generated parts as development-only components. A release is not published when it cannot be written, when the workflow uses an action it does not list, when its checksum differs from the file's or the README's, or when the private-reference check matches it or the release's text.
-- **Held by:** `project-standards`: "The bill of materials describes the release"; `project-standards`: "An action missing from the bill of materials stops the release"; `project-standards`: "A release without a bill of materials is not published"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.2; `add-pr-cost-calculator` task 6.3
+- **Held by:** `releases-and-compatibility`: "The bill of materials describes the release"; `releases-and-compatibility`: "An action missing from the bill of materials stops the release"; `releases-and-compatibility`: "A release without a bill of materials is not published"; `add-pr-cost-calculator` decision 11; `add-pr-cost-calculator` task 6.2; `add-pr-cost-calculator` task 6.3
 
 ## Risk matrix
 

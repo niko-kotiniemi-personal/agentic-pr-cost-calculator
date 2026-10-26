@@ -317,7 +317,8 @@ def test_the_sync_script_and_the_lock_list_the_same_paths() -> None:
 
 
 # The oldest Python the tool supports. It rises only when this version nears
-# its end of life, so that adopters on older systems can keep using the tool.
+# its end of life, or when a security fix needs a newer one, so that adopters
+# on older systems can keep using the tool.
 def pyproject() -> dict[str, Any]:
     config: dict[str, Any] = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     return config
@@ -369,7 +370,7 @@ PYTHON_PROSE = [
     "CONTRIBUTING.md",
     "CLAUDE.md",
     "docs/features/releases-and-compatibility.md",
-    "openspec/changes/add-pr-cost-calculator/specs/project-standards/spec.md",
+    "openspec/changes/add-pr-cost-calculator/specs/releases-and-compatibility/spec.md",
 ]
 
 

@@ -24,14 +24,14 @@ The figure is an **API-equivalent estimate**, meaning what the same tokens would
 ## Documentation
 
 - [How it works](docs/how-it-works.md): the product as a whole, with its flows, how a cost is computed, and every credential, permission and outside connection it uses.
-- [Features](docs/features/README.md): one page per feature, with its expected behaviour.
+- [Features](docs/features/README.md): one page per feature, with its expected behaviour, its requirements and how it is validated.
 - [Requirements](docs/requirements.md): every functional, behavioural and non-functional requirement, indexed to the specs that hold them.
 - [Threat model](docs/threat-model.md): what could go wrong, each threat rated for impact and likelihood, and what answers it.
 - [Changelog](CHANGELOG.md).
 
 ## Compatibility and releases
 
-The tool runs on Python 3.11 and every later release, with the standard library only, so it fits into other projects without pulling anything in. The oldest supported version rises only when it nears its end of life. Versions follow [Semantic Versioning](https://semver.org/), and each release on GitHub carries a CycloneDX software bill of materials and names the commit to pin. No version has been released yet.
+The tool runs on Python 3.11 and every later release, with the standard library only, so it fits into other projects without pulling anything in. The oldest supported version rises only when it nears its end of life, or when a security fix needs a newer one. Versions follow [Semantic Versioning](https://semver.org/), and each release on GitHub carries a CycloneDX software bill of materials and names the commit to pin. No version has been released yet.
 
 ## Working on this repository
 

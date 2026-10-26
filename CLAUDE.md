@@ -61,6 +61,7 @@ Change the documentation in the same pull request as what it describes (design d
 
 - **OpenSpec owns what the tool must do.** Requirements and their scenarios live in `openspec/`. If the work shows a requirement is wrong, update the change first. Never change intent silently in code. The `openspec-*` skills are generated: never edit them, because CI regenerates them and compares.
 - **Superpowers owns how it is built:** planning inside an approved change, test-driven development, debugging and review. It is vendored under `vendor/superpowers/`. Never edit a vendored file. CI re-syncs the tree from `UPSTREAM.lock` and fails on any difference.
+- **Use the skills themselves, not a memory of them.** Create a change with `/openspec-propose`, after `/openspec-explore` while the idea is still open, revise one with `/openspec-update-change`, and build it with Superpowers' skills. When one is not loaded, as in a session that started outside this repository, read its `SKILL.md` under `.claude/skills/` or `vendor/superpowers/skills/`, follow it, and say so.
 - **The owner decides merges.** Nothing merges because an AI reported success.
 
 ## Testing
