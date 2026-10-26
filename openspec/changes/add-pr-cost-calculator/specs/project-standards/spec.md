@@ -6,7 +6,16 @@ Hold the whole product to the standards that make it safe to adopt: documentatio
 
 ### Requirement: The documentation names everything the tool does
 
-The repository SHALL keep a register of every requirement, with its kind, one page for each feature, and one page that explains the tool as a whole. That page SHALL name every credential and permission the tool uses, as a table per workflow and per job, every connection it makes to the outside world, with where to, by which protocol and why, and every flow, each drawn as a diagram. Tests SHALL fail when the register misses a requirement in the specs or names one they do not hold, when a requirement belongs to no feature page, when a workflow, whether its file ends in `.yml` or `.yaml`, grants a permission in any job that the page's table does not give for that job, or the table gives one that the job is not granted, when a workflow runs an action or a container or service image that the page does not name, and when a flow has no diagram.
+The repository SHALL keep a register of every requirement, with its kind, one page for each feature, and one page that explains the tool as a whole. That page SHALL name every credential and permission the tool uses, as a table per workflow and per job, every connection it makes to the outside world, with where to, by which protocol and why, and every flow, each drawn as a diagram. Tests SHALL fail when a flow has no diagram.
+
+#### Scenario: A flow without a diagram fails CI
+
+- **WHEN** a flow has no diagram
+- **THEN** a test fails
+
+### Requirement: The register matches the specs, and every requirement is on a feature page
+
+Tests SHALL fail when the register (see "The documentation names everything the tool does") misses a requirement in the specs or names one they do not hold, and when a requirement belongs to no feature page.
 
 #### Scenario: A requirement missing from the register fails CI
 
@@ -17,6 +26,10 @@ The repository SHALL keep a register of every requirement, with its kind, one pa
 
 - **WHEN** a requirement belongs to no feature page
 - **THEN** a test fails and names the requirement
+
+### Requirement: Workflows are checked against the documented permissions, actions and images
+
+Tests SHALL fail when a workflow, whether its file ends in `.yml` or `.yaml`, grants a permission in any job that the table of the page that explains the tool as a whole (see "The documentation names everything the tool does") does not give for that job, or the table gives one that the job is not granted, and when a workflow runs an action or a container or service image that the page does not name.
 
 #### Scenario: An undocumented permission or action fails CI
 

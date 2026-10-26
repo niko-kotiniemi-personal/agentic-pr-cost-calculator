@@ -6,7 +6,7 @@ What holds for the whole product rather than for one feature: documentation that
 
 **Spec:** `project-standards`
 
-**Requirements:** R29, R30, R31, R33, R34, R73, R74
+**Requirements:** R29, R100, R101, R30, R31, R33, R34, R73, R74
 
 ## Expected behaviour
 

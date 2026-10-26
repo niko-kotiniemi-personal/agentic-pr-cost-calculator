@@ -49,14 +49,14 @@ The capability names the spec that holds the requirement. Each capability is one
 | R35 | behavioural | `report-comment` | Each ledger line is held to the ledger format |
 | R36 | behavioural | `switch-and-opt-in` | Capture reads the configuration file only as a regular file within its bound |
 | R37 | behavioural | `switch-and-opt-in` | The person's setting is read only from their global configuration files |
-| R38 | behavioural | `switch-and-opt-in` | The setting is read by git's rules, and only some of git's true values opt a person in |
+| R38 | behavioural | `switch-and-opt-in` | The setting is read by git's rules |
 | R39 | behavioural | `switch-and-opt-in` | A repository's own git configuration can turn capture off |
 | R40 | behavioural | `switch-and-opt-in` | Consent holds for each recorded call |
 | R41 | functional | `usage-capture` | A call is identified by its message id and read from its lines that give a stop reason |
 | R42 | functional | `usage-capture` | A call with no stop reason is read from its last line once it is over |
 | R43 | functional | `usage-capture` | A call with an unknown usage field is recorded and counted |
 | R44 | functional | `usage-capture` | Capture reads only lines that end in a line break, and no one line holds it back |
-| R45 | functional | `usage-capture` | Capture reads the branch's ledger files only from git, and its git commands stay offline |
+| R45 | functional | `usage-capture` | Capture reads the branch's ledger files only from git |
 | R46 | functional | `usage-capture` | Calls recorded with no branch checked out go only to a commit made the same way |
 | R47 | functional | `usage-capture` | Capture keeps what it records inside the common git directory |
 | R48 | behavioural | `usage-capture` | A substitution counts as a command before the commit |
@@ -86,6 +86,55 @@ The capability names the spec that holds the requirement. Each capability is one
 | R72 | non-functional | `releases-and-compatibility` | A release is not published when its bill of materials is missing or fails a check |
 | R73 | non-functional | `project-standards` | Each feature's page matches its spec |
 | R74 | non-functional | `project-standards` | Each proposal says how its outcome is validated |
+| R75 | functional | `usage-capture` | A subagent's calls are read from its own transcript |
+| R76 | functional | `usage-capture` | Capture works on the repository that holds the project directory |
+| R77 | non-functional | `ledger` | A model name or attribute value the price table does not list is recorded as unknown |
+| R78 | functional | `usage-capture` | A call goes only to a commit in its worktree, on the branch it was recorded on |
+| R79 | behavioural | `usage-capture` | Only git's commit subcommand counts as a commit |
+| R80 | behavioural | `usage-capture` | A commit is a dry run when a dry-run option is left in effect |
+| R81 | behavioural | `usage-capture` | A ledger file holds the new calls of its commit's worktree and branch |
+| R82 | behavioural | `usage-capture` | Only a top-level commit in the foreground, after nothing but listed commands, takes a ledger file |
+| R83 | behavioural | `usage-capture` | No ledger file is staged for a commit that names its paths |
+| R84 | behavioural | `usage-capture` | A commit with nothing to commit and no git add, rm or mv before it takes no ledger file |
+| R85 | behavioural | `usage-capture` | No ledger file is staged after a removal or move that may reach the ledger folder |
+| R86 | behavioural | `usage-capture` | No ledger file is staged where the ledger path has a filter or a working-tree encoding |
+| R87 | behavioural | `usage-capture` | A ledger file whose command is refused, blocked, cancelled or interrupted is taken back by a later run |
+| R88 | behavioural | `usage-capture` | The registered command runs the hook file only when its checksum matches |
+| R89 | behavioural | `usage-capture` | The capture step writes only its own words and numbers to standard error |
+| R90 | behavioural | `usage-capture` | The capture step finishes within a time budget |
+| R91 | functional | `switch-and-opt-in` | Capture reads the configuration in the working tree |
+| R92 | functional | `switch-and-opt-in` | A missing or unreadable configuration file neither turns the tool on nor stops the report |
+| R93 | functional | `switch-and-opt-in` | A change to the configuration, the hook or a workflow is flagged |
+| R94 | functional | `report-comment` | The comment says what its figure is and where it comes from |
+| R95 | functional | `report-comment` | The comment counts refused calls and calls that may leave the token cost low |
+| R96 | functional | `report-comment` | A report run again updates only its own comment |
+| R97 | behavioural | `report-comment` | No text from the pull request or the jobs API is quoted |
+| R98 | behavioural | `report-comment` | A ledger line naming a model or attribute value that the price table does not list, other than the value unknown, is refused |
+| R99 | non-functional | `releases-and-compatibility` | Every copy of the oldest supported Python agrees with its one source |
+| R100 | non-functional | `project-standards` | The register matches the specs, and every requirement is on a feature page |
+| R101 | non-functional | `project-standards` | Workflows are checked against the documented permissions, actions and images |
+| R102 | behavioural | `report-comment` | A refused ledger line is counted as refused, and no line stops the report |
+| R103 | behavioural | `switch-and-opt-in` | Only an absolute XDG folder is read |
+| R104 | behavioural | `switch-and-opt-in` | Only an absolute home folder is read |
+| R105 | behavioural | `switch-and-opt-in` | The home configuration file decides over the XDG one |
+| R106 | behavioural | `switch-and-opt-in` | Only some of git's true values turn capture on |
+| R107 | behavioural | `switch-and-opt-in` | Each run notes in the store whether it found both switches on |
+| R108 | behavioural | `switch-and-opt-in` | An interval when both switches were on begins at the session's start or at a run, and ends at a run |
+| R109 | behavioural | `switch-and-opt-in` | An opt-out ends every session's interval and withholds earlier calls |
+| R110 | behavioural | `switch-and-opt-in` | Ledger files are taken back and put back whatever the switches say |
+| R111 | functional | `usage-capture` | The capture step's git commands stay offline |
+| R112 | behavioural | `usage-capture` | An unquoted here-document in or before the commit stages nothing |
+| R113 | behavioural | `usage-capture` | Only a ledger file that no run has found in a commit is taken back |
+| R114 | behavioural | `usage-capture` | A take-back leaves the file for a later run while the index is in use |
+| R115 | behavioural | `usage-capture` | Each take-back is noted |
+| R116 | behavioural | `usage-capture` | A ledger file that a take-back removed is put back for a commit that holds it |
+| R117 | behavioural | `usage-capture` | A put-back is tried once, and in no other case |
+| R118 | non-functional | `usage-capture` | Capture reads both switches before it starts any program |
+| R119 | functional | `ledger` | The comment says how many ledger files the pull request restores, removes or changes |
+| R120 | functional | `ci-minutes` | Runs that the merge's push starts, and runs on other commits, are not counted |
+| R121 | functional | `ci-minutes` | The report finds the pull request's runs with the fewest calls it can |
+| R122 | non-functional | `releases-and-compatibility` | The public surface is kept in a manifest |
+| R123 | non-functional | `releases-and-compatibility` | The release workflow compares the surface manifest with the previous release's |
 
 IDs are stable: a requirement keeps its ID while it exists, and a new one takes the next free number, so the rows follow the order in which requirements were added rather than the order of the specs. A requirement that a later change removes leaves the table, and its ID is listed below with the change that removed it, never to be used again.
 

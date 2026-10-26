@@ -8,7 +8,7 @@ Scenarios below that run the capture step follow the conventions that `usage-cap
 
 ### Requirement: The ledger holds counts, never content
 
-A ledger entry SHALL contain no prompt text, response text, code, file contents, tool name, tool input or output, file path, working directory, branch name, user name, session identifier or time of day. The only text an entry takes from the transcript SHALL be the model's name and the values of the price attributes (see "Usage is recorded per model call" in `usage-capture`), and each SHALL be recorded only when the price table that the capture step ships with lists it, so that the name of a private gateway, a custom model or an alias is not published. Any other value SHALL be recorded as `unknown`.
+A ledger entry SHALL contain no prompt text, response text, code, file contents, tool name, tool input or output, file path, working directory, branch name, user name, session identifier or time of day. The only text an entry takes from the transcript SHALL be the model's name and the values of the price attributes (see "Usage is recorded per model call" in `usage-capture`).
 
 #### Scenario: Content in the transcript does not reach the ledger
 
@@ -19,6 +19,10 @@ A ledger entry SHALL contain no prompt text, response text, code, file contents,
 
 - **WHEN** every text value in a transcript and in the hook's input, and the name of the branch checked out, is a distinct marker string, except the model names and price attribute values that the price table lists
 - **THEN** no marker appears in any ledger file, whether in its contents or in its path
+
+### Requirement: A model name or attribute value the price table does not list is recorded as unknown
+
+A call's model name and each of its price attribute values (see "Usage is recorded per model call" in `usage-capture`) SHALL be recorded only when the price table that the capture step ships with lists that name or value, so that the name of a private gateway, a custom model or an alias is not published. Any other value SHALL be recorded as `unknown`.
 
 #### Scenario: An unexpected model name is recorded as unknown
 
@@ -60,7 +64,7 @@ The capture step SHALL stage only the ledger file it wrote.
 
 ### Requirement: A ledger file is noted before it is written
 
-The capture step SHALL note a ledger file in its store before it writes it, so that a later run takes back a file that a run killed while writing it left behind, as "A ledger file that no commit takes is taken back" and "A ledger file that a commit takes stays taken" in `usage-capture` say for a file that no commit took.
+The capture step SHALL note a ledger file in its store before it writes it, so that a later run takes back a file that a run killed while writing it left behind, as the requirements from "A ledger file that no commit takes is taken back" to "A put-back is tried once, and in no other case" in `usage-capture` say for a file that no commit took.
 
 #### Scenario: A ledger file that a killed run left is taken back
 
@@ -87,7 +91,7 @@ The report SHALL count only the entries of ledger files that the merge adds: fil
 
 ### Requirement: Each call is counted at most once
 
-The report SHALL count each call at most once: an added entry for a call that a ledger file held at any commit of the default branch's first-parent history before the merge SHALL NOT be counted, added entries for one call SHALL be counted once when they are identical, and SHALL all be refused when they differ, so that a ledger file that leaves the default branch and comes back, as a revert of a revert brings it back, is not counted again (see "Only the ledger files that the merge adds are counted"). An added ledger file at a path that a ledger file held at any commit of that history SHALL be counted as restored. The comment SHALL say how many ledger files it counted as restored, and how many ledger files that the default branch held before the merge the pull request removed or changed, and SHALL count none of their entries.
+The report SHALL count each call at most once: an added entry for a call that a ledger file held at any commit of the default branch's first-parent history before the merge SHALL NOT be counted, added entries for one call SHALL be counted once when they are identical, and SHALL all be refused when they differ (see "Only the ledger files that the merge adds are counted").
 
 #### Scenario: A copied entry is counted once
 
@@ -104,15 +108,24 @@ The report SHALL count each call at most once: an added entry for a call that a 
 - **WHEN** a pull request adds two entries for one call that differ
 - **THEN** neither entry is counted, and both are counted as refused
 
+#### Scenario: A ledger file that a revert brings back is not counted again
+
+- **WHEN** a pull request's ledger file was counted when it merged, a later pull request reverted that merge, and a third pull request reverts that revert
+- **THEN** the third pull request's report counts none of that file's entries
+
+### Requirement: The comment says how many ledger files the pull request restores, removes or changes
+
+An added ledger file (see "Only the ledger files that the merge adds are counted") at a path that a ledger file held at any commit of the default branch's first-parent history before the merge SHALL be counted as restored. The comment SHALL say how many ledger files it counted as restored, and how many ledger files that the default branch held before the merge the pull request removed or changed, and SHALL count none of their entries.
+
 #### Scenario: Removed or changed ledger files are flagged
 
 - **WHEN** a pull request removes, changes or renames a ledger file that the default branch held before the merge
 - **THEN** the comment says how many such files it removed or changed, and counts none of their entries
 
-#### Scenario: A ledger file that a revert brings back is not counted again
+#### Scenario: A ledger file that a revert brings back is counted as restored
 
 - **WHEN** a pull request's ledger file was counted when it merged, a later pull request reverted that merge, and a third pull request reverts that revert
-- **THEN** the third pull request's report counts none of that file's entries, and its comment says that it restored one ledger file
+- **THEN** the third pull request's comment says that it restored one ledger file
 
 ### Requirement: The job summary says how many ledger files a push without a comment removes or changes
 

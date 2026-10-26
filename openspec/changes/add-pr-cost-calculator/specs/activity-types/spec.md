@@ -8,7 +8,7 @@ Scenarios below that run the capture step follow the conventions that `usage-cap
 
 ### Requirement: Each entry carries an activity type
 
-Each entry SHALL carry one activity type derived from the tools the model call invoked: code generation for file edits and writes, file reading for reads and searches, tooling for shell commands, MCP for MCP tool calls, subagent for starting a subagent, other for a tool the classification does not know, and conversation when no tool was called. A call that invoked tools of several types SHALL carry the type of its first tool call. A tool's name SHALL be read only to choose the type, and SHALL NOT be recorded.
+Each entry SHALL carry one activity type derived from the tools its call invoked: code generation for file edits and writes, file reading for reads and searches, tooling for shell commands, MCP for MCP tool calls, subagent for starting a subagent, other for a tool the classification does not know, and conversation when no tool was called. A call that invoked tools of several types SHALL carry its first tool call's type. Tool names SHALL be read only to choose the type and SHALL NOT be recorded.
 
 #### Scenario: An edit is code generation
 

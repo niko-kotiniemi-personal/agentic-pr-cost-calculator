@@ -36,7 +36,7 @@ The capture step SHALL read the repository's configuration file in the working t
 
 ### Requirement: The person's setting is read only from their global configuration files
 
-The capture step SHALL read the person's setting (see "Capture runs only where the tool is on and the person has opted in") only from their global configuration files themselves, `~/.gitconfig` and git's configuration file in their XDG configuration folder, which is `$XDG_CONFIG_HOME/git/config` when that variable holds an absolute path and `~/.config/git/config` otherwise, not from files they include, ignoring any environment variable that points git at other configuration files or adds settings. It SHALL take the home folder `~` to be the folder that `HOME` names when that variable holds an absolute path, and otherwise, on Windows, the one that git uses when `HOME` is not set, which is `HOMEDRIVE` and `HOMEPATH` together where they name a folder that exists and is not Windows' system folder, and `USERPROFILE` where they do not, and elsewhere none, and SHALL never read a configuration file from a relative path. Where both files set it, `~/.gitconfig`, which git reads after the other, SHALL decide.
+The capture step SHALL read the person's setting (see "Capture runs only where the tool is on and the person has opted in") only from their global configuration files themselves, `~/.gitconfig` and git's configuration file in their XDG configuration folder (see "Only an absolute home folder is read" and "Only an absolute XDG folder is read"), not from files they include, ignoring any environment variable that points git at other configuration files or adds settings.
 
 #### Scenario: The environment cannot opt a person in
 
@@ -53,15 +53,18 @@ The capture step SHALL read the person's setting (see "Capture runs only where t
 - **WHEN** the repository turns the tool on and its own git configuration does not set capture, the person's `~/.gitconfig` exists and does not set capture, and git's configuration file in their XDG configuration folder turns it on
 - **THEN** the session's calls are recorded
 
-#### Scenario: The home configuration file decides when both set it
+### Requirement: Only an absolute XDG folder is read
 
-- **WHEN** git's configuration file in the person's XDG configuration folder turns capture on, and their `~/.gitconfig` turns it off
-- **THEN** nothing is recorded
+The capture step SHALL take git's configuration file in the person's XDG configuration folder to be `$XDG_CONFIG_HOME/git/config` when that variable holds an absolute path, and `~/.config/git/config` (see "Only an absolute home folder is read") otherwise.
 
 #### Scenario: A relative XDG folder is not read
 
 - **WHEN** `XDG_CONFIG_HOME` holds a relative path, and only a git configuration file at that path inside the repository turns capture on
 - **THEN** nothing is recorded
+
+### Requirement: Only an absolute home folder is read
+
+The capture step SHALL take the home folder `~` to be the folder that `HOME` names when that variable holds an absolute path, and otherwise, on Windows, the one that git uses when `HOME` is not set, which is `HOMEDRIVE` and `HOMEPATH` together where they name a folder that exists and is not Windows' system folder, and `USERPROFILE` where they do not, and elsewhere none, and SHALL never read a configuration file from a relative path.
 
 #### Scenario: The home folder is the one git reads on Windows
 
@@ -73,24 +76,42 @@ The capture step SHALL read the person's setting (see "Capture runs only where t
 - **WHEN** `HOME` holds a relative path, and only a `.gitconfig` at that path inside the repository turns capture on
 - **THEN** nothing is recorded
 
-### Requirement: The setting is read by git's rules, and only some of git's true values opt a person in
+### Requirement: The home configuration file decides over the XDG one
 
-The capture step SHALL read the person's setting (see "Capture runs only where the tool is on and the person has opted in") by git's rules for its configuration files: section and key names match in any case, a value is read without its quotes or a comment that follows it, the last value in a file decides, and a key in a subsection, such as `[pr-cost "x"]`, or in a comment is not the setting. Of the values, only `true`, `yes`, `on` and `1`, in any case, and the key alone with no value SHALL turn capture on, and any other value SHALL leave it off, even one that git reads as true, such as `2`.
+Where both of the person's global configuration files (see "The person's setting is read only from their global configuration files") set the person's setting, `~/.gitconfig`, which git reads after the other, SHALL decide.
+
+#### Scenario: The home configuration file decides when both set it
+
+- **WHEN** git's configuration file in the person's XDG configuration folder turns capture on, and their `~/.gitconfig` turns it off
+- **THEN** nothing is recorded
+
+### Requirement: The setting is read by git's rules
+
+The capture step SHALL read the person's setting (see "Capture runs only where the tool is on and the person has opted in") by git's rules for its configuration files: section and key names match in any case, a value is read without its quotes or a comment that follows it, the last value in a file decides, and a key in a subsection, such as `[pr-cost "x"]`, or in a comment is not the setting.
 
 #### Scenario: The last value in a file decides
 
 - **WHEN** the person's `~/.gitconfig` sets `pr-cost.capture` to `false` and then, further down the same file, to `true`
 - **THEN** the session's calls are recorded, and with the two values the other way round, nothing is recorded
 
-#### Scenario: Git's spellings of the setting opt a person in
+#### Scenario: The setting's names in any case, and its value in quotes, opt a person in
 
-- **WHEN** the person's `~/.gitconfig` turns capture on only with `Capture = Yes` in a section written `[PR-Cost]`, or only with the value `on`, `1` or `"true"`, or only with the key alone and no value
+- **WHEN** the person's `~/.gitconfig` turns capture on only with `Capture = true` in a section written `[PR-Cost]`, or only with the value `"true"`
 - **THEN** the session's calls are recorded
 
 #### Scenario: A subsection or a comment does not opt a person in
 
 - **WHEN** the person's `~/.gitconfig` sets capture to `true` only in a subsection, such as `[pr-cost "x"]`, or only in a comment
 - **THEN** nothing is recorded
+
+### Requirement: Only some of git's true values turn capture on
+
+Of the values of the person's setting (see "The setting is read by git's rules"), only `true`, `yes`, `on` and `1`, in any case, and the key alone with no value SHALL turn capture on, and any other value SHALL leave it off, even one that git reads as true, such as `2`.
+
+#### Scenario: Git's spellings of the setting opt a person in
+
+- **WHEN** the person's `~/.gitconfig` turns capture on only with the value `Yes`, `on` or `1`, or only with the key alone and no value
+- **THEN** the session's calls are recorded
 
 #### Scenario: A number other than `1`, or a value that git cannot read, does not opt a person in
 
@@ -108,31 +129,57 @@ The capture step SHALL record nothing in a repository whose own git configuratio
 
 ### Requirement: Consent holds for each recorded call
 
-Consent, the two switches that "Capture runs only where the tool is on and the person has opted in" requires, SHALL hold for each call that the capture step records, not only for the run that records it. The step SHALL note in its store, for each session, when a run finds both switches on and when a run finds either off, creating the store where there is none, and SHALL record a session's calls only when they were made inside an interval when both were on. Such an interval begins at the session's start when the session's first run finds both on, and otherwise at a run that finds both on after one that found either off, and it ends at the last run that finds both on before the next run that finds either off. A run that finds the person's own capture off, in their global configuration or in the repository's own, SHALL end that interval for every session that the store notes, and the step SHALL never stage, after that run, a call made before it. Whatever the switches say, every run that the floors in `releases-and-compatibility` let go on SHALL take back and put back ledger files, and note as taken the calls of a file that a commit holds, as "A ledger file that no commit takes is taken back" and "A ledger file that a commit takes stays taken" in `usage-capture` say.
+Consent, the two switches that "Capture runs only where the tool is on and the person has opted in" requires, SHALL hold for each call that the capture step records, not only for the run that records it. The step SHALL record a session's calls only when they were made inside one of that session's intervals when both were on (see "An interval when both switches were on begins at the session's start or at a run, and ends at a run").
 
 #### Scenario: Calls made before a person opts in are not recorded
 
 - **WHEN** the repository turns the tool on, a session makes calls while the person has not turned capture on, a run of the step then comes, and the person then turns capture on
 - **THEN** none of the calls made before that run is recorded, and the calls that the session makes after a later run finds capture on are recorded
 
+### Requirement: Each run notes in the store whether it found both switches on
+
+The capture step SHALL note in its store, for each session, when a run finds both switches on and when a run finds either off (see "Capture runs only where the tool is on and the person has opted in"), creating the store where there is none.
+
+#### Scenario: A run that finds a switch off creates the store to note it
+
+- **WHEN** a run of the step finds that the person has not turned capture on, and no store exists yet
+- **THEN** the run creates the store, and notes in it, for the run's session, when the run found a switch off
+
+### Requirement: An interval when both switches were on begins at the session's start or at a run, and ends at a run
+
+A session's interval when both switches were on (see "Consent holds for each recorded call") SHALL begin at the session's start when the session's first run finds both on, and otherwise at a run that finds both on after one that found either off, and SHALL end at the last run that finds both on before the next run that finds either off.
+
 #### Scenario: Calls made while capture was off are not recorded when it is on again
 
 - **WHEN** a run of the step has found both switches on, the person then turns capture off, the session makes calls, a run of the step comes, and the person then turns capture on again
 - **THEN** none of the calls that the session made after the last run that found capture on, and before the next run that found it on again, is recorded
+
+### Requirement: An opt-out ends every session's interval and withholds earlier calls
+
+A run of the capture step that finds the person's own capture off, in their global configuration or in the repository's own, SHALL end, for every session that the store notes, the interval when both switches were on (see "An interval when both switches were on begins at the session's start or at a run, and ends at a run"), and the step SHALL never stage, after that run, a call made before it.
 
 #### Scenario: Calls recorded before an opt-out are not staged
 
 - **WHEN** calls were recorded and are waiting to be staged, the person then turns capture off, a run of the step comes, and the person turns capture on again before the agent's next commit
 - **THEN** that commit carries none of those calls
 
+#### Scenario: The calls of a file taken back after an opt-out are not staged again
+
+- **WHEN** the step has staged a ledger file for a `git commit` that is then refused at a permission prompt, the person then turns capture off, and the step's next run finds that command over while no other git command holds the index
+- **THEN** no later commit carries its calls
+
+### Requirement: Ledger files are taken back and put back whatever the switches say
+
+Whatever the switches (see "Capture runs only where the tool is on and the person has opted in") say, every run of the capture step that the floors in `releases-and-compatibility` let go on SHALL take back and put back ledger files, and note as taken the calls of a file that a commit holds, as the requirements from "A ledger file that no commit takes is taken back" to "A put-back is tried once, and in no other case" in `usage-capture` say.
+
 #### Scenario: A file staged before capture is turned off is still taken back
 
 - **WHEN** the step has staged a ledger file for a `git commit` that is then refused at a permission prompt, the person then turns capture off, and the step's next run finds that command over while no other git command holds the index
-- **THEN** that run takes the file back, from the index and the working tree, and no later commit carries its calls
+- **THEN** that run takes the file back, from the index and the working tree
 
 ### Requirement: One file turns the tool on or off, and a pull request cannot turn off its own report
 
-A repository SHALL turn the calculator on by adding its configuration file with the tool enabled, and off by removing the file or disabling the tool in it. Capture SHALL read the configuration in the working tree. The report SHALL read it from the default branch as it was before the merge and as it is after, only as a blob at each of those two commits and within the size bound that the configuration's format documents, and SHALL run when either turns the tool on, so that the pull request that turns the tool off still gets its report, and so does the one that turns it on. A configuration file that is missing at a commit, is not a regular file there, is larger than that bound or is not valid SHALL NOT turn the tool on at that commit, and SHALL NOT stop the report. When a pull request changes the configuration file, the hook file at the path that the README gives, or any workflow file, its comment SHALL say so, because any workflow in the repository can run with the identity that posts the report, and the hook runs on the machine of everyone who works in the repository.
+A repository SHALL turn the calculator on by adding its configuration file with the tool enabled, and off by removing the file or disabling the tool in it. The report SHALL read the configuration from the default branch as it was before the merge and as it is after, only as a blob at each of those two commits and within the size bound that the configuration's format documents, and SHALL run when either turns the tool on.
 
 #### Scenario: Disabled means silent
 
@@ -149,17 +196,34 @@ A repository SHALL turn the calculator on by adding its configuration file with 
 - **WHEN** the pull request that adds the configuration file, with the tool enabled, merges
 - **THEN** its report comment is posted
 
-#### Scenario: A changed report is flagged
+### Requirement: Capture reads the configuration in the working tree
 
-- **WHEN** a pull request changes the configuration file, the hook file, the workflow file that runs the report, or another workflow file
-- **THEN** its comment says that the pull request changed the tool's configuration, its hook or a workflow
-
-#### Scenario: A pull request that makes the configuration unreadable still gets its report
-
-- **WHEN** the configuration turns the tool on before the merge, and a pull request replaces the configuration file with one that is not valid, is larger than its size bound, is a symbolic link or is not a regular file
-- **THEN** its report comment is posted, and says that the pull request changed the tool's configuration
+Capture SHALL read the repository's configuration file (see "One file turns the tool on or off, and a pull request cannot turn off its own report") in the working tree.
 
 #### Scenario: Capture follows the configuration in the working tree
 
 - **WHEN** the configuration file in the working tree turns the tool off, and the commit checked out there holds one that turns it on
 - **THEN** capture records nothing
+
+### Requirement: A missing or unreadable configuration file neither turns the tool on nor stops the report
+
+A configuration file that is missing at a commit, is not a regular file there, is larger than the size bound that the configuration's format documents or is not valid SHALL NOT turn the tool on at that commit, and SHALL NOT stop the report.
+
+#### Scenario: A pull request that makes the configuration unreadable still gets its report
+
+- **WHEN** the configuration turns the tool on before the merge, and a pull request replaces the configuration file with one that is not valid, is larger than its size bound, is a symbolic link or is not a regular file
+- **THEN** its report comment is posted
+
+### Requirement: A change to the configuration, the hook or a workflow is flagged
+
+When a pull request changes the configuration file, the hook file at the path that the README gives, or any workflow file, its comment SHALL say so.
+
+#### Scenario: A changed report is flagged
+
+- **WHEN** a pull request changes the configuration file, the hook file, the workflow file that runs the report, or another workflow file
+- **THEN** its comment says that the pull request changed the tool's configuration, its hook or a workflow
+
+#### Scenario: A pull request that makes the configuration unreadable is flagged
+
+- **WHEN** the configuration turns the tool on before the merge, and a pull request replaces the configuration file with one that is not valid, is larger than its size bound, is a symbolic link or is not a regular file
+- **THEN** its comment says that the pull request changed the tool's configuration

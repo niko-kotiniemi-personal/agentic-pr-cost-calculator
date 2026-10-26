@@ -6,7 +6,7 @@ The report adds what the pull request's GitHub Actions runs cost, from the times
 
 **Spec:** `ci-minutes`
 
-**Requirements:** R18, R62, R63, R64
+**Requirements:** R18, R62, R120, R121, R63, R64
 
 ## Expected behaviour
 

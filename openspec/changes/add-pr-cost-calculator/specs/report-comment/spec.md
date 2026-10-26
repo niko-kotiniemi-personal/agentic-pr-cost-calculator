@@ -6,17 +6,30 @@ Give each merged pull request one short, readable comment saying what it cost, c
 
 ### Requirement: A merged pull request gets one report comment
 
-When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost, and how many of those minutes ran on runners that the price table does not list; the price table's date; the tool's version; the number of ledger entries it counted, and the number of entries and files it did not count, for each reason that this capability and `ledger` give; the number of calls that capture refused; the number of calls that capture read without a stop reason, and, when there are any, that the token cost is a lower bound; and the number of calls whose usage held a field that capture does not know, and, when there are any, that the token cost may be low. It SHALL state that the figure is an API-equivalent estimate, not a bill, that it counts the usage that the pull request's commits carry and the CI runs on those commits, and that it does not count the model calls that Claude Code makes for its own tools without writing them to the session's transcript. When the report runs again, it SHALL update its earlier comment, and SHALL update only a comment that its own identity wrote.
+When a pull request merges with the tool on, the report SHALL post one comment giving the total cost; the cost by model, by token type and by activity type; the CI minutes and their cost, and how many of those minutes ran on runners that the price table does not list; and the number of ledger entries it counted, and the number of entries and files it did not count, for each reason that this capability and `ledger` give.
 
 #### Scenario: The comment states the totals
 
 - **WHEN** a pull request with a ledger and CI runs merges
 - **THEN** one comment is posted with the token cost, the CI cost and their total
 
+#### Scenario: A pull request without a ledger says so
+
+- **WHEN** a pull request merges with no ledger on its branch
+- **THEN** the comment gives the CI cost and says that no agent usage was recorded
+
+### Requirement: The comment says what its figure is and where it comes from
+
+The report's comment (see "A merged pull request gets one report comment") SHALL give the price table's date and the tool's version, and SHALL state that the figure is an API-equivalent estimate, not a bill, that it counts the usage that the pull request's commits carry and the CI runs on those commits, and that it does not count the model calls that Claude Code makes for its own tools without writing them to the session's transcript.
+
 #### Scenario: The comment says what the figure is
 
 - **WHEN** the report posts its comment
 - **THEN** the comment says that the figure is an API-equivalent estimate and not a bill, that it counts the usage the pull request's commits carry and the CI runs on those commits, and that it does not count the model calls that Claude Code makes for its own tools without writing them to the transcript, and names the price table's date and the tool's version
+
+### Requirement: The comment counts refused calls and calls that may leave the token cost low
+
+The report's comment (see "A merged pull request gets one report comment") SHALL give the number of calls that capture refused; the number of calls that capture read without a stop reason, and, when there are any, that the token cost is a lower bound; and the number of calls whose usage held a field that capture does not know, and, when there are any, that the token cost may be low.
 
 #### Scenario: Calls that capture refused are counted in the comment
 
@@ -33,10 +46,9 @@ When a pull request merges with the tool on, the report SHALL post one comment g
 - **WHEN** the ledger files that a pull request adds count calls whose usage held a field that capture does not know
 - **THEN** the comment gives their number, and says that the token cost may be low
 
-#### Scenario: A pull request without a ledger says so
+### Requirement: A report run again updates only its own comment
 
-- **WHEN** a pull request merges with no ledger on its branch
-- **THEN** the comment gives the CI cost and says that no agent usage was recorded
+When the report runs again, it SHALL update its earlier comment (see "A merged pull request gets one report comment"), and SHALL update only a comment that its own identity wrote.
 
 #### Scenario: Running the report twice posts one comment
 
@@ -59,22 +71,30 @@ When the hook file at the path that the README gives is missing from the merged 
 
 ### Requirement: The comment shows only what the report computed
 
-The comment, the report's job summary and what the report writes to its log SHALL hold only numbers, the report's own fixed text, and model, attribute and runner names that the price table lists, shown as code in the comment and the job summary. None of them SHALL quote ledger lines, file names, branch names, job names, runner labels the price table does not list, or any other text from the pull request or from the jobs API, so that no such text is read as Markdown in the comment or the job summary, or as a workflow command, such as `::error::`, in the log. A ledger line that names a model or an attribute value that the price table does not list, other than `unknown`, SHALL be refused.
-
-#### Scenario: A name with markup is not shown as written
-
-- **WHEN** a ledger line names a model with a link, an image, an @-mention or a workflow command in it
-- **THEN** the line is refused, and none of that text is in the comment, the job summary or the log
+The comment, the report's job summary and what the report writes to its log SHALL hold only numbers, the report's own fixed text, and model, attribute and runner names that the price table lists, shown as code in the comment and the job summary.
 
 #### Scenario: A runner label with markup is not shown
 
 - **WHEN** a job's runner labels, as the jobs API gives them, hold a link, an image, an @-mention or a workflow command
 - **THEN** none of that text is in the comment, the job summary or the log
 
+### Requirement: No text from the pull request or the jobs API is quoted
+
+The comment, the report's job summary and what the report writes to its log SHALL NOT quote ledger lines, file names, branch names, job names, runner labels the price table does not list, or any other text from the pull request or from the jobs API, so that no such text is read as Markdown in the comment or the job summary, or as a workflow command, such as `::error::`, in the log.
+
 #### Scenario: Refused ledger lines are counted, not shown
 
 - **WHEN** some ledger lines that the pull request adds are not valid entries
 - **THEN** the comment says how many were refused, and none of them is quoted in the comment, the job summary or the log
+
+### Requirement: A ledger line naming a model or attribute value that the price table does not list, other than the value unknown, is refused
+
+A ledger line that names a model or an attribute value that the price table does not list, other than `unknown`, SHALL be refused.
+
+#### Scenario: A name with markup is not shown as written
+
+- **WHEN** a ledger line names a model with a link, an image, an @-mention or a workflow command in it
+- **THEN** the line is refused, and none of that text is in the comment, the job summary or the log
 
 ### Requirement: The report reads the ledger from git, within bounds
 
@@ -106,7 +126,7 @@ The report SHALL refuse the ledger change when the added ledger files (see "Only
 
 ### Requirement: Ledger files that the default branch already holds are read by capture's rules
 
-The report SHALL read the ledger files that the default branch's first-parent history held before the merge by the rules that capture applies to the ledger files it reads: it SHALL skip a path in the ledger folder that is not a regular file and a file larger than the size bound (see "A ledger change larger than the size bound is refused"), and SHALL skip a line that does not match the ledger format, counting it neither as an entry nor as a refused line of the pull request, so that no ledger file that the default branch already holds can stop or slow every later report.
+The report SHALL read the ledger files that the default branch's first-parent history held before the merge by the rules that capture applies to the ledger files it reads: it SHALL skip a path in the ledger folder that is not a regular file and a file larger than the size bound (see "A ledger change larger than the size bound is refused"), and SHALL skip a line that does not match the ledger format, counting it neither as an entry nor as a refused line of the pull request.
 
 #### Scenario: An oversized ledger file that the default branch holds does not stop the report
 
@@ -163,7 +183,7 @@ The report SHALL run only for a push that a merge makes to the default branch, a
 
 ### Requirement: A push gets a comment only when all its commits belong to one pull request
 
-The report SHALL comment only when every commit that the push adds to the default branch's first-parent history belongs to one pull request. A push that merges no pull request SHALL get no comment, and the report SHALL say so in its job summary. A push that merges more than one pull request, as a merge queue can, or that adds commits of no pull request beside a merge, SHALL get no comment either, and the report SHALL say so in its job summary, because it cannot tell which ledger files and runs belong to which.
+The report SHALL comment only when every commit that the push adds to the default branch's first-parent history belongs to one pull request. A push that merges no pull request SHALL get no comment. A push that merges more than one pull request, as a merge queue can, or that adds commits of no pull request beside a merge, SHALL get no comment either, because the report cannot tell which ledger files and runs belong to which. In each of these cases, the report SHALL say so in its job summary.
 
 #### Scenario: A push that merges no pull request gets no comment
 
@@ -191,7 +211,7 @@ The report SHALL make no more calls to GitHub's API than the call budget that th
 
 ### Requirement: Each ledger line is held to the ledger format
 
-The report SHALL read each line of the ledger files that the merge adds (see "Only the ledger files that the merge adds are counted" in `ledger`) against the format that the ledger format documents, and SHALL refuse every line that does not match it, among them a line with a count that is not a whole number from zero up to the ceiling, a count given as `true` or `false`, as not-a-number or as a number too large to hold, such as `1e999`, a field given twice or a field that the format does not name, nesting deeper than the format allows, or a day that is not a date. A refused line's entry SHALL NOT be counted, the line SHALL be counted as refused, and no line, however it is malformed, SHALL stop the report.
+The report SHALL read each line of the ledger files that the merge adds (see "Only the ledger files that the merge adds are counted" in `ledger`) against the ledger format, and SHALL refuse every line that does not match it, among them a line with a count that is not a whole number from zero up to the ceiling, or that is `true`, `false`, not-a-number or too large to hold, a field given twice or not named by the format, nesting deeper than the format allows, or a day that is not a date.
 
 #### Scenario: A ledger count that is not a whole number within the ceiling is refused
 
@@ -232,6 +252,10 @@ The report SHALL read each line of the ledger files that the merge adds (see "On
 
 - **WHEN** a ledger line that the pull request adds gives a day that is not a date in the calendar, such as `2026-02-30`
 - **THEN** that line is refused, counted as refused, and its entry is not counted
+
+### Requirement: A refused ledger line is counted as refused, and no line stops the report
+
+A refused ledger line's entry SHALL NOT be counted, the line SHALL be counted as refused, and no line, however it is malformed, SHALL stop the report.
 
 #### Scenario: An unreadable ledger line is counted and the report completes
 

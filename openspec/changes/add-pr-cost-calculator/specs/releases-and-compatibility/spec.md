@@ -8,7 +8,7 @@ Scenarios below that run the capture step follow the conventions that `usage-cap
 
 ### Requirement: The tool runs on the oldest supported Python and on every later release
 
-The hook and the report SHALL run on Python 3.11, the oldest version this change supports, and on every later release, with the standard library only. CI SHALL run the tests on the oldest supported version and on the newest release, and `requires-python` in `pyproject.toml` SHALL be the one source of the oldest supported version: a test SHALL fail when any other copy of it disagrees, among them the versions that ruff and mypy check against, the CI matrix, `.python-version`, the bill of materials, the hook's own guard, and the documents that state it.
+The hook and the report SHALL run on Python 3.11, the oldest version this change supports, and on every later release, with the standard library only. CI SHALL run the tests on the oldest supported version and on the newest release.
 
 #### Scenario: The tests run on the oldest supported Python
 
@@ -20,9 +20,18 @@ The hook and the report SHALL run on Python 3.11, the oldest version this change
 - **WHEN** a change uses a feature of the standard library or of the language that Python 3.11 lacks
 - **THEN** CI fails on the oldest version's job, or ruff or mypy reports it
 
+#### Scenario: A CI matrix without the newest release fails a test
+
+- **WHEN** the CI matrix lacks the newest Python release
+- **THEN** a test fails and names the CI matrix
+
+### Requirement: Every copy of the oldest supported Python agrees with its one source
+
+`requires-python` in `pyproject.toml` SHALL be the one source of the oldest supported version (see "The tool runs on the oldest supported Python and on every later release"): a test SHALL fail when any other copy of it disagrees, among them the versions that ruff and mypy check against, the CI matrix, `.python-version`, the bill of materials, the hook's own guard, and the documents that state it.
+
 #### Scenario: Declared versions that disagree are reported
 
-- **WHEN** a setting or a document names an oldest supported Python other than the one `requires-python` gives, or the CI matrix lacks either the oldest version or the newest release
+- **WHEN** a setting or a document names an oldest supported Python other than the one `requires-python` gives, or the CI matrix lacks the oldest version
 - **THEN** a test fails and names the copy that differs
 
 ### Requirement: The oldest supported Python and major updates change only on the owner's decision
@@ -70,21 +79,34 @@ A release SHALL be made only by pushing a tag `vMAJOR.MINOR.PATCH` that names a 
 
 ### Requirement: Versions are semantic, and their numbers say what an adopter must do
 
-The version SHALL raise its major number for a change that existing adopters must act on, which is any change to the public surface: the hook file's registered command, by its form and not the checksum it carries, and its path, the opt-in key, the ledger path and format, the store's format, the configuration file, the reusable workflow's path, inputs and permissions, and the Python and git floors. A manifest of that surface SHALL be kept in the repository, and the release workflow SHALL compare it between the previous release's commit and the tag (see "Releases are made from a tag that matches the version and the changelog"). It SHALL raise its minor number for a change that adds behaviour without breaking any of these, and its patch number for a fix alone. A changelog entry that lists a breaking change, or a release whose surface manifest changed, SHALL come with a raised major number and a `### Breaking` section.
-
-#### Scenario: A changed public surface needs a major version
-
-- **WHEN** the surface manifest at the tag differs from the one at the previous release's commit, and the changelog entry has no `### Breaking` section or the major number does not rise
-- **THEN** no release is published, and the workflow names what changed
+The version SHALL raise its major number for a change that existing adopters must act on, which is any change to the public surface (see "The public surface is kept in a manifest"). It SHALL raise its minor number for a change that adds behaviour without breaking any part of that surface, and its patch number for a fix alone. A changelog entry that lists a breaking change SHALL come with a raised major number and a `### Breaking` section.
 
 #### Scenario: A breaking change raises the major version
 
 - **WHEN** the changelog entry for a release lists a breaking change and the release does not raise the major number over the previous release
 - **THEN** no release is published and the workflow says why
 
+### Requirement: The public surface is kept in a manifest
+
+The public surface SHALL be the hook file's registered command, by its form and not the checksum it carries, and its path, the opt-in key, the ledger path and format, the store's format, the configuration file, the reusable workflow's path, inputs and permissions, and the Python and git floors. A manifest of that surface SHALL be kept in the repository.
+
+#### Scenario: The surface manifest names the whole public surface
+
+- **WHEN** the surface manifest in the repository is read
+- **THEN** it names each part of the public surface
+
+### Requirement: The release workflow compares the surface manifest with the previous release's
+
+The release workflow SHALL compare the surface manifest (see "The public surface is kept in a manifest") between the previous release's commit and the tag (see "Releases are made from a tag that matches the version and the changelog"). A release whose surface manifest changed SHALL come with a raised major number and a `### Breaking` section.
+
+#### Scenario: A changed public surface needs a major version
+
+- **WHEN** the surface manifest at the tag differs from the one at the previous release's commit, and the changelog entry has no `### Breaking` section or the major number does not rise
+- **THEN** no release is published, and the workflow names what changed
+
 ### Requirement: Every release carries a software bill of materials
 
-Each release SHALL carry a software bill of materials in CycloneDX JSON, written by a standard-library Python script in this repository from the tagged tree, never from a working tree. It SHALL name the tool, its version, the commit it was built from, its licence, the oldest supported Python as `requires-python` gives it, the hook file's SHA-256, each action the reusable workflow uses at its pinned commit, and the vendored and generated parts as development-only components with their source and licence.
+Each release SHALL carry a CycloneDX JSON software bill of materials, written by a standard-library Python script in this repository from the tagged tree, never a working tree. It SHALL name the tool, its version, the commit it was built from, its licence, the oldest supported Python as `requires-python` gives it, the hook file's SHA-256, each action the reusable workflow uses at its pinned commit, and the vendored and generated parts as development-only components with their source and licence.
 
 #### Scenario: The bill of materials describes the release
 
