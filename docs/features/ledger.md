@@ -18,7 +18,7 @@ The ledger is a set of small files under `.pr-cost/ledger/` that the agent's com
 
 ## How it is validated
 
-This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that design decision 8 applies to all the tool's code. Beyond those, this feature has its own:
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that DR-084 to DR-093 and DR-109 apply to all the tool's code. Beyond those, this feature has its own:
 
 - The format is written down first, and the tests read its values from that document (task 1.2).
 - Property tests that no planted string reaches a ledger file's contents or its path (task 2.1), and a check that a ledger file raises no finding from a common secret scanner (task 1.2).

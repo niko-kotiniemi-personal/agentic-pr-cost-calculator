@@ -16,6 +16,7 @@ Teams that build pull requests with AI coding agents can see what a pull request
 - Each threat rated for impact and likelihood, from 1 to 3, with a risk matrix, and the threat model revisited by an independent review at design and again at implementation (design decision 9).
 - Releases by semantic version from a tag, each with a CycloneDX bill of materials, and dependency updates that keep the oldest supported Python unless it nears its end of life or a security fix needs a newer one (design decisions 10 and 11).
 - Documentation that names everything the tool does: a register of the requirements, a page per feature that names its spec's requirements and says how the feature is validated, and a page explaining the tool as a whole, with its flows, credentials, permissions and connections, each checked against the specs and the workflows (design decision 12).
+- A record of each decision in `docs/decisions/`, with an index: one choice per record, typed, with who decided it and the requirements and threats it shapes, so that each decision can be reversed or replaced on its own. Once the default branch holds a record, it is never edited, only closed by the record that replaces it, after which lines of its text may become `[removed]` (design decision 13).
 - Verification that tests everything that can be tested: acceptance tests first, property-based tests, full branch coverage, mutation testing, every check shown to fail, and a review in a separate context before merge (design decision 8).
 
 ## Capabilities
@@ -32,7 +33,7 @@ The tool is one product made of nine capabilities, each one spec. Seven are the 
 - `ci-minutes`: the cost of the GitHub Actions minutes that the pull request's own commits used.
 - `report-comment`: the one comment a merged pull request gets, and the trusted code that computes it.
 - `releases-and-compatibility`: the Python and git versions the tool supports, how its dependencies move, and its releases with their bill of materials.
-- `project-standards`: what holds for the whole product: documentation that names everything the tool does, the tool's connections, rated threats, pull request text without private references, and pinned actions.
+- `project-standards`: what holds for the whole product: documentation that names everything the tool does, the tool's connections, rated threats, pull request text without private references, pinned actions, and a record of each decision.
 
 ### Modified Capabilities
 
@@ -40,7 +41,7 @@ None. This repository has no specs yet.
 
 ## How the outcome is validated
 
-Every capability is validated first by its scenarios. Task 1.3 traces each scenario to a test. Task 1.4 writes an acceptance test for each scenario whose code is still to be written, before that code, each seen to fail for its expected reason, and names in its test each scenario that a check already in place holds. The checks of design decision 8 then hold all the tool's code: full branch coverage and mutation testing (task 1.5), the network guard (task 1.6), and property-based tests for its invariants. Beyond those, each capability has its own:
+Every capability is validated first by its scenarios. Task 1.3 traces each scenario to a test. Task 1.4 writes an acceptance test for each scenario whose code is still to be written, before that code, each seen to fail for its expected reason, and names in its test each scenario that a check already in place holds. The checks of design decision 8 then hold all the tool's code: full branch coverage and mutation testing (task 1.5), the network guard (task 1.6), property-based tests for its invariants, and end-to-end tests of the whole flow (task 4.5). Beyond those, each capability has its own:
 
 | Capability | Validated beyond its scenarios by |
 |---|---|
@@ -52,7 +53,7 @@ Every capability is validated first by its scenarios. Task 1.3 traces each scena
 | `ci-minutes` | recorded API responses for each way a pull request can merge (task 3.3) |
 | `report-comment` | a property test that no planted string reaches its outputs (task 4.1), tests that it refuses every other event and never shows its token (task 4.3), and the end-to-end run on this repository's own merge (task 7.1) |
 | `releases-and-compatibility` | the version checks already in place (task 1.11), the capture step's floors (task 6.5), a CI job with git 2.43, the oldest git that CI tests (task 4.4), and the release check and bill of materials (tasks 6.1 to 6.3) |
-| `project-standards` | the documentation, threat model and workflow tests already in place (tasks 1.10, 1.12, 1.16 and 1.17), the checks of connections, pull request text and pins (tasks 1.13 to 1.15), and of what the code reads (task 5.3) |
+| `project-standards` | the documentation, threat model, workflow and decision record tests already in place (tasks 1.10, 1.12 and 1.16 to 1.18), the checks of connections, pull request text and pins (tasks 1.13 to 1.15), and of what the code reads (task 5.3) |
 
 The change as a whole succeeds when:
 
@@ -64,7 +65,7 @@ The change as a whole succeeds when:
 
 ## Impact
 
-- New: the standard files of an open-source project (a contributing guide, a code of conduct, a changelog, issue and pull request templates, code owners and an editor configuration), a release workflow, the requirements register, the feature pages and the page explaining the tool.
+- New: the standard files of an open-source project (a README, a licence, a security policy, a contributing guide, a code of conduct, a changelog, issue and pull request templates, code owners and an editor configuration), a release workflow, the requirements register, the feature pages, the page explaining the tool, and the decision records with their index.
 - New: a hook script for Claude Code, as one file that an adopter copies from the commit that their workflow pins, a reusable GitHub Actions workflow, a price table, the threat model, and their tests.
 - Development tools added with the first code: coverage.py, Hypothesis, mutmut, and detect-secrets, which checks that a ledger file does not look like a secret to a common scanner, pinned like the others.
 - A repository that adopts the tool gains a configuration file, the ledger files that each pull request's commits add, which stay after merge as the record, and a workflow of its own that runs on pushes to the default branch and calls the tool's reusable workflow, granting it only `pull-requests: write` to comment, `actions: read` to read job times and `contents: read` to read the ledger.

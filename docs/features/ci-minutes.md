@@ -23,7 +23,7 @@ The report adds what the pull request's GitHub Actions runs cost, from the times
 
 ## How it is validated
 
-This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that design decision 8 applies to all the tool's code. Beyond those, this feature has its own:
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that DR-084 to DR-093 and DR-109 apply to all the tool's code. Beyond those, this feature has its own:
 
 - Tests against recorded API responses for a merge commit, a squash, a rebase merge and a fast-forward, a run on the pull request's `closed` event, and a pull request with more commits than the call budget allows (task 3.3).
 

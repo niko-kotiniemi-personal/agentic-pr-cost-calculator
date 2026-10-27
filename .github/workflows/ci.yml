@@ -2,6 +2,11 @@ name: CI
 
 on:
   pull_request:
+    # GitHub's default three, and `edited`, which a change of the pull request's
+    # base branch is, so that the tests compare with the new base. `edited` also
+    # runs them again when the title or the description changes, a cost that
+    # T70 accepts.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -27,12 +32,15 @@ jobs:
       matrix:
         # The oldest Python the tool supports, and the newest release. The
         # oldest rises only when it nears its end of life, or when a security fix
-        # needs a newer one (design decision 10).
+        # needs a newer one (DR-134).
         python-version: ["3.11", "3.x"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # The whole history, so that the tests can compare the decision
+          # records with the commit named below.
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -41,6 +49,10 @@ jobs:
       - run: ruff format --check .
       - run: mypy
       - run: pytest
+        env:
+          # What the default branch held before this change: the pull request's
+          # base commit, or the commit that a push to the default branch replaced.
+          BASE_COMMIT: ${{ github.event.pull_request.base.sha || github.event.before }}
 
   openspec:
     runs-on: ubuntu-latest

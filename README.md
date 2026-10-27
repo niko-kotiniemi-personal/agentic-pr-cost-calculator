@@ -27,6 +27,7 @@ The figure is an **API-equivalent estimate**, meaning what the same tokens would
 - [Features](docs/features/README.md): one page per feature, with its expected behaviour, its requirements and how it is validated.
 - [Requirements](docs/requirements.md): every functional, behavioural and non-functional requirement, indexed to the specs that hold them.
 - [Threat model](docs/threat-model.md): what could go wrong, each threat rated for impact and likelihood, and what answers it.
+- [Decisions](docs/decisions/README.md): one record per decision, with why it was made, what else was considered and what reversing it would change.
 - [Changelog](CHANGELOG.md).
 
 ## Compatibility and releases

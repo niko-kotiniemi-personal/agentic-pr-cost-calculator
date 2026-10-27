@@ -13,6 +13,7 @@ import json
 import re
 import subprocess
 import tomllib
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -89,22 +90,64 @@ def test_the_licence_is_mit() -> None:
     assert text.startswith("MIT License")
 
 
-def test_no_tracked_file_carries_a_private_reference() -> None:
+def private_references(
+    path: str, text: str, hashes: frozenset[str] = PRIVATE_NAME_HASHES
+) -> list[str]:
+    """The private references in a file and in its path, named but not quoted."""
     hits = []
+    for where, value in (("", text), (" in its path", path)):
+        hits += [f"{path}: {p.pattern}{where}" for p in PRIVATE_PATTERNS if p.search(value)]
+        if private_names_in(value, hashes):
+            hits.append(f"{path}: a private name{where}")
+    return hits
+
+
+def private_reference_problems(files: Iterable[tuple[str, str]]) -> list[str]:
+    """The private references in (path, text) pairs, and whether any text was read at all."""
+    hits, read = [], 0
+    for path, text in files:
+        read += bool(text)
+        hits += private_references(path, text)
+    problems = [] if read else ["no tracked file was read, so this test covered nothing"]
+    if hits:
+        problems.append("private references found:\n" + "\n".join(hits))
+    return problems
+
+
+def tracked_texts() -> Iterator[tuple[str, str]]:
+    """Each tracked file's path and text, with no text for a file that is not UTF-8."""
     for path in tracked_files():
         file = ROOT / path
-        if not file.is_file():
-            continue
         try:
-            text = file.read_text(encoding="utf-8")
+            text = file.read_text(encoding="utf-8") if file.is_file() else ""
         except UnicodeDecodeError:
-            continue
-        for pattern in PRIVATE_PATTERNS:
-            if pattern.search(text):
-                hits.append(f"{path}: {pattern.pattern}")
-        if private_names_in(text):
-            hits.append(f"{path}: a private name")
-    assert not hits, "private references found:\n" + "\n".join(hits)
+            text = ""
+        yield path, text
+
+
+def test_no_tracked_file_carries_a_private_reference() -> None:
+    problems = private_reference_problems(tracked_texts())
+    assert not problems, "\n".join(problems)
+
+
+def test_a_read_that_finds_no_text_is_named() -> None:
+    nothing = "no tracked file was read, so this test covered nothing"
+    assert private_reference_problems([]) == [nothing]
+    assert private_reference_problems([("empty.md", "")]) == [nothing]
+    assert private_reference_problems([("plain.md", "plain text")]) == []
+
+
+def test_a_private_reference_in_a_path_is_named() -> None:
+    hashes = frozenset({hashlib.sha256(b"example-venture").hexdigest()})
+    assert private_references("docs/DR-001-example-venture.md", "", hashes) == [
+        "docs/DR-001-example-venture.md: a private name in its path"
+    ]
+    path = "docs/cmsg" + "_01ABCDEFGHJK.md"
+    assert private_references(path, "cmsg" + "_01ABCDEFGHJK", hashes) == [
+        f"{path}: cmsg_[0-9A-Za-z]{{8,}}",
+        f"{path}: cmsg_[0-9A-Za-z]{{8,}} in its path",
+    ]
+    assert private_references("docs/a-plain-name.md", "plain text", hashes) == []
 
 
 def test_the_privacy_patterns_catch_what_they_are_for() -> None:
@@ -146,10 +189,33 @@ def test_renovate_waits_fourteen_days_for_every_datable_update() -> None:
     assert rules and all(r.get("minimumReleaseAge") == "14 days" for r in rules)
 
 
+def vulnerability_fix_delays(config: dict[str, Any]) -> list[str]:
+    """What would hold a vulnerability fix back: a release age, an approval, or alerts off."""
+    alerts = config.get("vulnerabilityAlerts", {})
+    delays = []
+    if alerts.get("minimumReleaseAge", "unset") is not None:
+        delays.append("vulnerability fixes wait for the release age")
+    if alerts.get("dependencyDashboardApproval") is not False:
+        delays.append("vulnerability fixes wait for approval on the dependency dashboard")
+    if config.get("osvVulnerabilityAlerts") is not True:
+        delays.append("OSV vulnerability alerts are off")
+    return delays
+
+
 def test_renovate_does_not_delay_vulnerability_fixes() -> None:
-    config = renovate()
-    assert config["vulnerabilityAlerts"]["minimumReleaseAge"] is None
-    assert config.get("osvVulnerabilityAlerts") is True
+    assert vulnerability_fix_delays(renovate()) == []
+
+
+def test_what_would_delay_a_vulnerability_fix_is_named() -> None:
+    assert vulnerability_fix_delays({}) == [
+        "vulnerability fixes wait for the release age",
+        "vulnerability fixes wait for approval on the dependency dashboard",
+        "OSV vulnerability alerts are off",
+    ]
+    fast = {"minimumReleaseAge": None, "dependencyDashboardApproval": False}
+    assert vulnerability_fix_delays({"vulnerabilityAlerts": fast}) == [
+        "OSV vulnerability alerts are off"
+    ]
 
 
 def test_renovate_reads_the_vendored_lock() -> None:
@@ -259,14 +325,155 @@ def test_a_write_the_workflow_is_allowed_is_not_reported(monkeypatch: Any) -> No
     assert triggers({"on": ["push", "pull_request"]}) == {"push", "pull_request"}
 
 
-def test_every_action_is_pinned_to_a_full_commit() -> None:
-    unpinned = []
-    for path in workflows():
-        for line in path.read_text(encoding="utf-8").splitlines():
+def checkouts(name: str, text: str) -> tuple[list[str], int]:
+    """The checkout steps that keep their credentials in the clone, and how many there are."""
+    doc = yaml.safe_load(text)
+    kept = []
+    count = 0
+    for job, body in (doc.get("jobs") or {}).items():
+        for step in body.get("steps") or []:
+            if str(step.get("uses", "")).startswith("actions/checkout@"):
+                count += 1
+                if (step.get("with") or {}).get("persist-credentials") is not False:
+                    kept.append(
+                        f"{name} job `{job}` checks out without `persist-credentials: false`"
+                    )
+    return kept, count
+
+
+def test_every_checkout_leaves_its_credentials_out_of_the_clone() -> None:
+    found = [checkouts(path.name, path.read_text(encoding="utf-8")) for path in workflows()]
+    assert sum(count for _, count in found), "no checkout was found, so this test covered nothing"
+    kept = [problem for problems, _ in found for problem in problems]
+    assert not kept, kept
+
+
+def test_a_checkout_that_keeps_its_credentials_is_named() -> None:
+    step = "      - uses: actions/checkout@0123\n"
+    text = (
+        "jobs:\n  a:\n    steps:\n"
+        + step
+        + step
+        + "        with:\n          persist-credentials: false\n"
+        + step
+        + "        with:\n          persist-credentials: 'false'\n"
+        + "      - run: echo\n"
+    )
+    assert checkouts("x.yml", text) == (
+        ["x.yml job `a` checks out without `persist-credentials: false`"] * 2,
+        3,
+    )
+
+
+BASE_ENV = {"BASE_COMMIT": "${{ github.event.pull_request.base.sha || github.event.before }}"}
+# GitHub's default activity types for a pull request, and `edited`, which a change of its
+# base branch is.
+TYPES = ["opened", "synchronize", "reopened", "edited"]
+
+
+def history_problems(doc: dict[Any, Any]) -> list[str]:
+    """What keeps the tests' job from comparing with its base: a clone of less than the
+    whole history, a base commit that the tests are not given, or a run that a change of
+    the pull request's base, or a push to the default branch, does not start."""
+    steps = doc["jobs"]["python"]["steps"]
+    checkout = next(s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@"))
+    tests = next(s for s in steps if s.get("run") == "pytest")
+    problems = []
+    if (checkout.get("with") or {}).get("fetch-depth") != 0:
+        problems.append("the tests' checkout fetches less than the whole history")
+    if tests.get("env") != BASE_ENV:
+        problems.append("the tests name no base commit, or another one")
+    on = doc.get("on", doc.get(True))
+    pull_request = on.get("pull_request") if isinstance(on, dict) else None
+    if not set(TYPES) <= set((pull_request or {}).get("types") or []):
+        problems.append(
+            "the tests do not run when a pull request is opened, pushed to, reopened or retargeted"
+        )
+    push = on.get("push") if isinstance(on, dict) else None
+    if (
+        not isinstance(push, dict)
+        or "main" not in (push.get("branches") or [])
+        or {"paths", "paths-ignore"} & push.keys()
+    ):
+        problems.append("the tests do not run on every push to the default branch")
+    return problems
+
+
+def test_ci_runs_the_tests_on_the_whole_history_and_names_their_base() -> None:
+    # The decision-record checks compare with this base, so a clone of one commit,
+    # or a run that names no base, would compare nothing.
+    doc = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    assert history_problems(doc) == []
+
+
+def test_a_test_job_without_the_history_or_its_base_is_named() -> None:
+    def job(checkout: dict[str, Any], env: dict[str, str] | None) -> dict[Any, Any]:
+        tests: dict[str, Any] = {"run": "pytest"} | ({"env": env} if env is not None else {})
+        steps = [{"uses": "actions/checkout@0123", "with": checkout}, tests]
+        on = {"pull_request": {"types": TYPES}, "push": {"branches": ["main"]}}
+        return {True: on, "jobs": {"python": {"steps": steps}}}
+
+    shallow = "the tests' checkout fetches less than the whole history"
+    unnamed = "the tests name no base commit, or another one"
+    assert history_problems(job({}, BASE_ENV)) == [shallow]
+    assert history_problems(job({"fetch-depth": 1}, BASE_ENV)) == [shallow]
+    assert history_problems(job({"fetch-depth": 0}, None)) == [unnamed]
+    other = {"BASE_COMMIT": "${{ github.event.before }}"}
+    assert history_problems(job({"fetch-depth": 0}, other)) == [unnamed]
+    assert history_problems(job({"fetch-depth": 0}, BASE_ENV)) == []
+
+
+def test_a_workflow_that_does_not_run_again_when_a_base_changes_is_named() -> None:
+    steps = [
+        {"uses": "actions/checkout@0123", "with": {"fetch-depth": 0}},
+        {"run": "pytest", "env": BASE_ENV},
+    ]
+    unrun = "the tests do not run when a pull request is opened, pushed to, reopened or retargeted"
+    unpushed = "the tests do not run on every push to the default branch"
+    push = {"branches": ["main"]}
+    for on, expected in (
+        ({"pull_request": None, "push": push}, [unrun]),
+        ({"pull_request": {"types": ["opened", "synchronize", "reopened"]}, "push": push}, [unrun]),
+        ({"pull_request": {"types": ["edited"]}, "push": push}, [unrun]),
+        ({"pull_request": {"types": TYPES}}, [unpushed]),
+        ({"pull_request": {"types": TYPES}, "push": None}, [unpushed]),
+        ({"pull_request": {"types": TYPES}, "push": {"branches": ["release"]}}, [unpushed]),
+        ({"pull_request": {"types": TYPES}, "push": push | {"paths": ["src/**"]}}, [unpushed]),
+        ({"pull_request": {"types": TYPES}, "push": push | {"paths-ignore": ["*.md"]}}, [unpushed]),
+        (["pull_request", "push"], [unrun, unpushed]),
+        ("pull_request", [unrun, unpushed]),
+        (None, [unrun, unpushed]),
+    ):
+        assert history_problems({True: on, "jobs": {"python": {"steps": steps}}}) == expected, on
+
+
+def unpinned_actions(files: Iterable[tuple[str, str]]) -> list[str]:
+    """Each action that a workflow uses by anything but a full commit, and whether any was used."""
+    used, unpinned = 0, []
+    for name, text in files:
+        for line in text.splitlines():
             m = re.search(r"uses:\s*([^\s#]+)", line)
+            used += bool(m)
             if m and not re.fullmatch(r"[^@]+@[0-9a-f]{40}", m.group(1)):
-                unpinned.append(f"{path.name}: {m.group(1)}")
-    assert not unpinned, unpinned
+                unpinned.append(f"{name}: {m.group(1)}")
+    return unpinned if used else ["no action was found, so this test covered nothing"]
+
+
+def test_every_action_is_pinned_to_a_full_commit() -> None:
+    problems = unpinned_actions(
+        (path.name, path.read_text(encoding="utf-8")) for path in workflows()
+    )
+    assert not problems, problems
+
+
+def test_a_workflow_without_an_action_is_named() -> None:
+    nothing = "no action was found, so this test covered nothing"
+    assert unpinned_actions([]) == [nothing]
+    assert unpinned_actions([("ci.yml", "    steps:\n      - run: pytest\n")]) == [nothing]
+    pinned = "      - uses: actions/checkout@" + "0" * 40 + "\n"
+    assert unpinned_actions([("ci.yml", pinned)]) == []
+    tagged = "      - uses: actions/checkout@v4\n"
+    assert unpinned_actions([("ci.yml", tagged)]) == ["ci.yml: actions/checkout@v4"]
 
 
 def test_openspec_is_pinned_to_an_exact_version() -> None:

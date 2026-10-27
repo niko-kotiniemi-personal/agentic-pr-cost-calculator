@@ -1,6 +1,6 @@
 ## Purpose
 
-Hold the whole product to the standards that make it safe to adopt: documentation that names everything it does and says how each feature is validated, connections only where that documentation says, rated threats, pull request text without private references, and action pins that their repositories tagged.
+Hold the whole product to the standards that make it safe to adopt: documentation that names everything it does and says how each feature is validated, connections only where that documentation says, rated threats, pull request text without private references, action pins that their repositories tagged, and a record of each decision, kept so that each can be reversed on its own.
 
 ## ADDED Requirements
 
@@ -129,3 +129,182 @@ A change's proposal SHALL list every capability that the change's specs hold, an
 
 - **WHEN** a change's proposal gives one of its capabilities no row, or an empty one, in its section on how the outcome is validated
 - **THEN** a test fails and names the capability
+
+### Requirement: Each decision has a record of its own, in a fixed form
+
+Each decision about what the tool is, how it works or how it is built SHALL have a record of its own in `docs/decisions/`, holding one choice and named for its number, and the records SHALL be numbered from DR-001 without a gap or a repeat. A record SHALL give its type, status, decider, requirements, threats, the records it replaces and the one that closed it, then its context, decision, alternatives, consequences, scope and what reversing it would change, each once, in that order, none empty.
+
+#### Scenario: A record out of form fails CI
+
+- **WHEN** a record is named or headed outside its form, lacks a field or a section, has one twice or out of order, leaves a section empty, or gives a field a value outside its form
+- **THEN** a test fails and names the record
+
+#### Scenario: A gap or a repeat in the record numbers fails CI
+
+- **WHEN** two records share a number, or a number between DR-001 and the highest has no record
+- **THEN** a test fails and names the number
+
+#### Scenario: A record numbered in other digits fails CI
+
+- **WHEN** a record's file name writes its number in digits other than ASCII, or with a leading zero that padding to three does not need
+- **THEN** a test fails and names the file
+
+### Requirement: The index lists every record as the record has it
+
+`docs/decisions/README.md` SHALL list every record once, in the order of their numbers, linking each and giving its title, type, status, decider, requirements and threats as the record gives them, and SHALL list nothing else, every line of its table, which runs to its first blank line, being a row in that form and no later line holding `|`.
+
+#### Scenario: An index out of step with the records fails CI
+
+- **WHEN** the index leaves a record out, lists one twice or out of order, lists one that does not exist, links a record to another file, gives a value that the record does not, holds a line in its table that is not a row in its form, or holds `|` on a line after its table
+- **THEN** a test fails and names the record
+
+### Requirement: A decision record names only what exists
+
+Each requirement and threat that a record names SHALL be held or retired, each record, change and task that it names SHALL exist, and each date that it gives SHALL be a real one, no later than the day the tests run. A closed record SHALL name the record that closed it, which SHALL name it among those it replaces, no record SHALL name itself, and an accepted record SHALL NOT rest only on retired requirements.
+
+#### Scenario: A record that names nothing fails CI
+
+- **WHEN** a record names a requirement or a threat that is neither held nor retired, a record, a change or a task that does not exist, or a date that is not one or is later than the day the test runs
+- **THEN** a test fails and names what it named
+
+#### Scenario: A closed record and its closer that do not name each other fail CI
+
+- **WHEN** a closed record names no record that closed it, an accepted one names one, a record names itself, or a record and the one that it names as its closer, or as one it replaces, do not name each other
+- **THEN** a test fails and names the records
+
+#### Scenario: An accepted record that rests only on retired requirements fails CI
+
+- **WHEN** every requirement that an accepted record cites is retired
+- **THEN** a test fails and names the record
+
+### Requirement: No document follows a closed record
+
+Every record and design decision that a tracked file outside `vendor/` and `tests/` names, and every requirement, threat, change and task that a Markdown file there names, SHALL exist, a requirement or a threat as held or retired. A parenthesis right after a record's ID SHALL give that record's title, and only the records, their index, the changelog and archived changes SHALL name a closed record, since a closed record no longer holds anything.
+
+#### Scenario: A mention of nothing fails CI
+
+- **WHEN** a tracked file names a record or a design decision that does not exist, or a Markdown file names a requirement or a threat that is neither held nor retired, or a change or a task that does not exist
+- **THEN** a test fails and names the file and what it named
+
+#### Scenario: A pattern in a data file is not read as a mention
+
+- **WHEN** a tracked file other than Markdown holds text in the form of a requirement's or a threat's ID, a change or a task, as a lock file's hashes can
+- **THEN** the test does not resolve it
+
+#### Scenario: A record named by another title fails CI
+
+- **WHEN** a tracked file follows a record's ID with a parenthesis that does not give that record's title
+- **THEN** a test fails and names the file, the record and its title
+
+#### Scenario: A mention of a closed record fails CI
+
+- **WHEN** a tracked file other than a record, the index, the changelog or an archived change names a closed record
+- **THEN** a test fails and names the file and the record
+
+### Requirement: A decision record holds plain text
+
+A record and the index SHALL hold only printable ASCII characters and line breaks, with no `&`, backslash or `@`, no fenced block, no web address, no link reference definition, no `<` or `][` outside inline code and no link but from a record's ID to that record's file, and a record SHALL hold no `|` outside inline code and no line but its headings that starts with `#`, so that a reviewer reads what an agent reads.
+
+#### Scenario: A record that hides text or links elsewhere fails CI
+
+- **WHEN** a record or the index holds a character other than printable ASCII or a line break, `&`, a backslash, `@`, a fenced block, a web address, a link reference definition, `<` or `][` outside inline code, or a link but from a record's ID to that record's file, or a record holds `|` outside inline code or a line other than its headings that starts with `#`
+- **THEN** a test fails and names the file
+
+### Requirement: An accepted record changes only to be closed
+
+Tests SHALL fail when a commit removes, renames or moves a record that the base commit holds, or changes it except to close it, by its status from accepted to closed and its closer named, after which any line of text under its sections may become `[removed]`. They SHALL compare git trees with where HEAD left the default branch and with any base commit that CI names, and SHALL fail when either cannot be found, or holds the records' folder with no record in it.
+
+#### Scenario: A record removed, renamed or changed fails CI
+
+- **WHEN** a commit removes, renames or moves a record that the base holds, puts a link or another mode in its place, or changes anything in it but what closing it allows
+- **THEN** a test fails and names the record
+
+#### Scenario: A record closed, or cleared once closed, passes
+
+- **WHEN** a commit changes a record's status from accepted to closed and names its closer, or replaces lines of text under a closed record's sections with `[removed]`
+- **THEN** the test passes
+
+#### Scenario: A base that cannot be found fails CI
+
+- **WHEN** the base commit that CI names is not a full commit ID or is not in the clone, or no merge base with the default branch can be found
+- **THEN** a test fails, says which, and gives the command that fetches what is missing
+
+#### Scenario: A base whose records' folder holds no record fails CI
+
+- **WHEN** a base commit holds `docs/decisions/` and no file in it that the tests read as a record
+- **THEN** a test fails and names the base
+
+#### Scenario: A tag never stands in for the default branch
+
+- **WHEN** a tag carries the default branch's name
+- **THEN** the test compares with the remote-tracking branch, or fails when the clone lacks it
+
+#### Scenario: A pull request is compared with the default branch as well
+
+- **WHEN** CI names a pull request's base commit
+- **THEN** the test compares with it and with where HEAD left the default branch, and fails on a change to a record that either holds
+
+#### Scenario: CI names the base for each event
+
+- **WHEN** CI runs the tests for a pull request, for a change of its base, or for a push to the default branch
+- **THEN** it clones the whole history and names the pull request's base commit, or the commit that the push replaced
+
+### Requirement: IDs that the default branch holds stay held or retired
+
+Tests SHALL fail when a requirement or threat ID that the base commit's register or threat model holds or retires is neither held nor retired at HEAD, so that no record comes to cite another requirement or threat.
+
+#### Scenario: An ID that vanishes fails CI
+
+- **WHEN** a commit drops a requirement or a threat, or a retired ID, that the base holds, without retiring it
+- **THEN** a test fails and names the ID
+
+### Requirement: A record and the threats it lists name each other
+
+Each threat that an accepted record lists SHALL name that record among what holds its answer, so that the change that closes the record meets the threat, and when a threat names a record that the base commit does not hold among what holds its answer, that record SHALL list the threat among its threats, so that whoever wrote the record agreed that it holds the answer.
+
+#### Scenario: A threat that leaves out a record listing it fails CI
+
+- **WHEN** an accepted record lists a threat whose Held by line does not name it
+- **THEN** a test fails and names the record and the threat
+
+#### Scenario: A new record that leaves out a threat citing it fails CI
+
+- **WHEN** a threat's answer is held by a record that the base does not hold, and the record does not list the threat
+- **THEN** a test fails and names the threat and the record
+
+#### Scenario: A threat's field that runs onto another line fails CI
+
+- **WHEN** a line of a threat is not one of its fields, as when its Held by line runs onto a second line
+- **THEN** a test fails and names the threat
+
+### Requirement: A removed threat's ID is retired, never used again
+
+The threat model SHALL number its threats from T1 in order, and a threat that a change removes SHALL keep its number out of use in the threat model's list of retired IDs, naming that change.
+
+#### Scenario: A gap or a reused ID in the threats fails CI
+
+- **WHEN** the threats skip a number that no retired ID explains, a retired ID is still a threat's, or a retired ID names no change or one that does not exist
+- **THEN** a test fails
+
+### Requirement: The records' folder holds only the records and their index
+
+`docs/decisions/` SHALL hold only the records and their index, each a file and not a link, with no folder in it, and no file elsewhere SHALL be named as a record, so that every record is one that the checks read.
+
+#### Scenario: A file out of place fails CI
+
+- **WHEN** `docs/decisions/` holds a folder, a link, or a file that is neither a record nor the index, or a file elsewhere is named as a record
+- **THEN** a test fails and names the file
+
+### Requirement: No attribute hides a record's diff
+
+No attribute that the repository sets SHALL make git show a record's or the index's diff as binary, or GitHub hide it as generated, so that whoever merges a pull request reads each change that it makes to a record.
+
+#### Scenario: An attribute that hides a record's diff fails CI
+
+- **WHEN** the repository's attributes give a record or the index `binary`, `diff` or `linguist-generated`, in any state
+- **THEN** a test fails and names the file and the attribute
+
+#### Scenario: A person's own attributes are not read
+
+- **WHEN** a person's global attributes file gives the records such an attribute
+- **THEN** the test does not read it

@@ -135,6 +135,17 @@ The capability names the spec that holds the requirement. Each capability is one
 | R121 | functional | `ci-minutes` | The report finds the pull request's runs with the fewest calls it can |
 | R122 | non-functional | `releases-and-compatibility` | The public surface is kept in a manifest |
 | R123 | non-functional | `releases-and-compatibility` | The release workflow compares the surface manifest with the previous release's |
+| R124 | non-functional | `project-standards` | Each decision has a record of its own, in a fixed form |
+| R125 | non-functional | `project-standards` | The index lists every record as the record has it |
+| R126 | non-functional | `project-standards` | A decision record names only what exists |
+| R127 | non-functional | `project-standards` | No document follows a closed record |
+| R128 | non-functional | `project-standards` | A decision record holds plain text |
+| R129 | non-functional | `project-standards` | An accepted record changes only to be closed |
+| R130 | non-functional | `project-standards` | IDs that the default branch holds stay held or retired |
+| R131 | non-functional | `project-standards` | A record and the threats it lists name each other |
+| R132 | non-functional | `project-standards` | A removed threat's ID is retired, never used again |
+| R133 | non-functional | `project-standards` | The records' folder holds only the records and their index |
+| R134 | non-functional | `project-standards` | No attribute hides a record's diff |
 
 IDs are stable: a requirement keeps its ID while it exists, and a new one takes the next free number, so the rows follow the order in which requirements were added rather than the order of the specs. A requirement that a later change removes leaves the table, and its ID is listed below with the change that removed it, never to be used again.
 

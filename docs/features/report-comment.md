@@ -20,7 +20,7 @@ When a pull request merges with the tool on, a workflow posts one short comment 
 
 ## How it is validated
 
-This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that design decision 8 applies to all the tool's code. Beyond those, this feature has its own:
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that DR-084 to DR-093 and DR-109 apply to all the tool's code. Beyond those, this feature has its own:
 
 - A property test that no planted string reaches the comment, the job summary or the log (task 4.1), and unit tests at every boundary of the ledger format (task 4.2).
 - Tests that the report refuses every event but the push that a merge makes, and that the token is in none of its outputs (task 4.3).

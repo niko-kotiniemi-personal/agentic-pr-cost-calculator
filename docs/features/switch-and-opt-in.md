@@ -20,7 +20,7 @@ Two switches decide whether anything is recorded. The repository decides whether
 
 ## How it is validated
 
-This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that design decision 8 applies to all the tool's code. Beyond those, this feature has its own:
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that DR-084 to DR-093 and DR-109 apply to all the tool's code. Beyond those, this feature has its own:
 
 - Tests that try each way that a repository or its environment could opt a person in, and check that capture stays off: the repository's own git configuration, git's environment variables, an included file, and a relative configuration folder (task 2.4).
 - Tests that the report reads `.pr-cost.json` from before and after the merge, including a file that a pull request makes unreadable (task 4.1).

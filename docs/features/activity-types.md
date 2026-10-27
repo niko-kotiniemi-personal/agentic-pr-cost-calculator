@@ -30,7 +30,7 @@ The tool's name is read only to choose the label. It is never recorded, because 
 
 ## How it is validated
 
-This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that design decision 8 applies to all the tool's code. Beyond those, this feature has its own:
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that DR-084 to DR-093 and DR-109 apply to all the tool's code. Beyond those, this feature has its own:
 
 - Synthetic transcripts with each kind of tool call, an MCP call among them, and a call whose tools are of several types (task 1.1), and the tests of the classification itself (task 2.5).
 

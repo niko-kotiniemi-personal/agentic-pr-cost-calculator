@@ -1,10 +1,19 @@
 """The threat model's answers point at things that exist.
 
 `docs/threat-model.md` lists each threat with what holds its answer: a scenario
-in a spec, a task or a decision of a change, or a file in this repository. A
-citation that names nothing reads as a control while holding none, so every
-citation must resolve, and every threat must cite something or say why it is
-accepted.
+in a spec, a task or a decision of a change, a decision record, or a file in this
+repository. A citation that names nothing reads as a control while holding none,
+so every citation must resolve, and every threat must cite something or say why
+it is accepted. `tests/test_decisions.py` also fails when an answer cites a
+closed record, since a closed decision no longer holds anything.
+
+Threats are numbered from T1 in order. A threat that a change removes keeps its
+number out of use in the list of retired IDs, so that a record or a document
+citing it never comes to cite another threat. Only the section "Retired IDs"
+retires an ID.
+
+Each line of a threat is one of its fields. A line that is not would show on
+GitHub as part of the field above it, while no check here would read it.
 
 Every threat is also rated for impact and likelihood, from 1 to 3 each, and its
 risk is their product. The risk matrix places each threat in the cell its two
@@ -43,6 +52,9 @@ SCENARIO = re.compile(r"^#### Scenario: (.+?)\s*$", re.M)
 SCENARIO_REF = re.compile(r'`([a-z0-9-]+)`: "([^"]+)"')
 TASK_REF = re.compile(r"`([a-z0-9-]+)` task (\d+\.\d+)")
 DECISION_REF = re.compile(r"`([a-z0-9-]+)` decision (\d+)")
+RECORD_REF = re.compile(r"\bDR-(\d{3,})\b")
+RETIRED = re.compile(r"^- T(\d+), removed by `[a-z0-9-]+`", re.M)
+RETIRED_SECTION = re.compile(r"^## Retired IDs\n(.*?)(?=^## |\Z)", re.M | re.S)
 PATH_REF = re.compile(r"`([^`\s]+)`")
 ARCHIVE_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}-")
 RATING = re.compile(r"([1-3]) \(([a-z]+)\)")
@@ -56,6 +68,7 @@ class Threat:
     ident: str
     number: int
     fields: dict[str, list[str]]
+    others: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -75,7 +88,9 @@ def threats_in(text: str) -> list[Threat]:
         fields: dict[str, list[str]] = {}
         for field in FIELD.finditer(body):
             fields.setdefault(field.group(1), []).append(field.group(2).strip())
-        found.append(Threat(mark.group(1), int(mark.group(2)), fields))
+        # A line that is not a field is part of the field above it on GitHub, unread here.
+        others = tuple(line for line in body.split("\n") if line.strip() and not FIELD.match(line))
+        found.append(Threat(mark.group(1), int(mark.group(2)), fields, others))
     return found
 
 
@@ -113,6 +128,11 @@ def citation_problems(ident: str, held: str, found: Index, root: Path) -> tuple[
         if design is None or not design.is_file() or not heading.search(design.read_text()):
             problems.append(f"{ident} cites `{change}` decision {number}, which does not exist")
     rest = DECISION_REF.sub("", rest)
+    for number in RECORD_REF.findall(rest):
+        cited += 1
+        if not sorted((root / "docs" / "decisions").glob(f"DR-{number}-*.md")):
+            problems.append(f"{ident} cites DR-{number}, which is not a decision record")
+    rest = RECORD_REF.sub("", rest)
     for path in PATH_REF.findall(rest):
         cited += 1
         target = (root / path).resolve()
@@ -127,11 +147,20 @@ def problems_in(text: str, root: Path) -> tuple[list[str], int]:
         return ["no threat found"], 0
     problems: list[str] = []
     numbers = [threat.number for threat in threats]
-    if numbers != list(range(1, len(threats) + 1)):
-        problems.append(f"threats are not numbered T1 to T{len(threats)} in order: {numbers}")
+    section = RETIRED_SECTION.search(text)
+    retired = {int(number) for number in RETIRED.findall(section.group(1) if section else "")}
+    last = max([*numbers, *retired])
+    if numbers != [n for n in range(1, last + 1) if n not in retired]:
+        problems.append(
+            f"threats are not numbered T1 to T{last} in order, apart from retired IDs: {numbers}"
+        )
     found = index(root)
     cited = 0
     for threat in threats:
+        problems += [
+            f"{threat.ident} has a line that is not a field, which no check reads: {line!r}"
+            for line in threat.others
+        ]
         missing = [name for name in FIELDS if not threat.fields.get(name)]
         doubled = [name for name, values in threat.fields.items() if len(values) > 1]
         if missing or doubled:
@@ -226,6 +255,8 @@ def synthetic_repository(root: Path) -> None:
     (old / "tasks.md").write_text("- [x] 3.1 Done long ago\n")
     (root / "docs").mkdir()
     (root / "docs" / "note.md").write_text("A file.\n")
+    (root / "docs" / "decisions").mkdir()
+    (root / "docs" / "decisions" / "DR-001-a-choice.md").write_text("# DR-001: A choice\n")
 
 
 MATRIX = (
@@ -266,9 +297,14 @@ def test_citations_that_exist_resolve(tmp_path: Path) -> None:
     synthetic_repository(tmp_path)
     held = (
         '`thing`: "It works"; `demo` task 1.1; `demo` task 1.2; `old` task 3.1; '
-        "`demo` decision 1; `docs/note.md`"
+        "`demo` decision 1; DR-001; `docs/note.md`"
     )
-    assert problems_in(threat(held) + matrix(), tmp_path) == ([], 6)
+    assert problems_in(threat(held) + matrix(), tmp_path) == ([], 7)
+
+
+def test_a_record_in_backticks_is_read_as_a_record(tmp_path: Path) -> None:
+    synthetic_repository(tmp_path)
+    assert problems_in(threat("`DR-001`") + matrix(), tmp_path) == ([], 1)
 
 
 def test_an_accepted_risk_with_its_reason_cites_nothing(tmp_path: Path) -> None:
@@ -285,6 +321,8 @@ def test_an_accepted_risk_with_its_reason_cites_nothing(tmp_path: Path) -> None:
         ("`demo` task 9.9", "cites `demo` task 9.9, which does not exist"),
         ("`missing` task 1.1", "cites `missing` task 1.1, which does not exist"),
         ("`demo` decision 2", "cites `demo` decision 2, which does not exist"),
+        ("DR-002", "cites DR-002, which is not a decision record"),
+        ("DR-01", "cites nothing and is not accepted"),
         ("`docs/absent.md`", "cites `docs/absent.md`, which is not a file in this repository"),
         ("`../outside.md`", "cites `../outside.md`, which is not a file in this repository"),
         ("the hook, somehow", "cites nothing and is not accepted"),
@@ -401,7 +439,54 @@ def test_threats_are_numbered_in_order(tmp_path: Path) -> None:
     synthetic_repository(tmp_path)
     text = threat("`docs/note.md`", number=1) + "\n" + threat("`docs/note.md`", number=3)
     problems, _ = problems_in(text + matrix("T1, T3"), tmp_path)
-    assert problems == ["threats are not numbered T1 to T2 in order: [1, 3]"]
+    assert problems == [
+        "threats are not numbered T1 to T3 in order, apart from retired IDs: [1, 3]"
+    ]
+
+
+def test_a_retired_id_leaves_a_gap_in_the_numbers(tmp_path: Path) -> None:
+    synthetic_repository(tmp_path)
+    text = threat("`docs/note.md`", number=1) + "\n" + threat("`docs/note.md`", number=3)
+    retired = "\n## Retired IDs\n\n- T2, removed by `demo`\n- T4, removed by `demo`\n"
+    assert problems_in(text + matrix("T1, T3") + retired, tmp_path) == ([], 2)
+
+
+@pytest.mark.parametrize(
+    ("numbers", "retired", "expected"),
+    [
+        ([1, 2], "- T2, removed by `demo`\n", "T1 to T2 in order, apart from retired IDs: [1, 2]"),
+        ([1, 3], "- T2, removed\n", "T1 to T3 in order, apart from retired IDs: [1, 3]"),
+        ([2, 1], "", "T1 to T2 in order, apart from retired IDs: [2, 1]"),
+    ],
+)
+def test_a_retired_id_still_in_use_or_without_its_change_is_reported(
+    tmp_path: Path, numbers: list[int], retired: str, expected: str
+) -> None:
+    synthetic_repository(tmp_path)
+    text = "\n".join(threat("`docs/note.md`", number=n) for n in numbers)
+    placed = matrix(", ".join(f"T{n}" for n in numbers))
+    problems, _ = problems_in(text + placed + "\n## Retired IDs\n\n" + retired, tmp_path)
+    assert problems == [f"threats are not numbered {expected}"]
+
+
+def test_a_field_that_runs_onto_another_line_is_reported(tmp_path: Path) -> None:
+    # GitHub shows the line as part of the field, and no check here would read it.
+    synthetic_repository(tmp_path)
+    text = threat("`docs/note.md`") + "  DR-002; `docs/absent.md`\n" + matrix()
+    problems, _ = problems_in(text, tmp_path)
+    assert problems == [
+        "T1 has a line that is not a field, which no check reads: '  DR-002; `docs/absent.md`'"
+    ]
+
+
+def test_a_retired_id_outside_its_section_explains_no_gap(tmp_path: Path) -> None:
+    synthetic_repository(tmp_path)
+    text = "# Threats\n\n- T2, removed by `demo`\n\n" + threat("`docs/note.md`", number=1)
+    text += "\n" + threat("`docs/note.md`", number=3) + matrix("T1, T3")
+    problems, _ = problems_in(text + "\n## Retired IDs\n\nNone yet.\n", tmp_path)
+    assert problems == [
+        "threats are not numbered T1 to T3 in order, apart from retired IDs: [1, 3]"
+    ]
 
 
 def test_a_document_without_threats_is_reported(tmp_path: Path) -> None:

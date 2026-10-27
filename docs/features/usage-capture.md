@@ -27,7 +27,7 @@ While a Claude Code session works in the repository, a hook records what each mo
 
 ## How it is validated
 
-This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that design decision 8 applies to all the tool's code. Beyond those, this feature has its own:
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that DR-084 to DR-093 and DR-109 apply to all the tool's code. Beyond those, this feature has its own:
 
 - Synthetic transcripts and hook inputs in each shape that Claude Code writes, with the lines for refused, blocked, cancelled and interrupted commands checked against what Claude Code writes for them (task 1.1).
 - Unit tests at every boundary of the counts, and property tests that no planted string reaches the ledger and that a second run changes nothing (task 2.1).
