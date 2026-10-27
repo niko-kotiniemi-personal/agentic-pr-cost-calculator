@@ -35,9 +35,10 @@ See `proposal.md` for why. These facts shape the approach:
 
 - Billing reconciliation. The figure is an API-equivalent estimate, and plans, discounts and included minutes are not modelled.
 - Agents other than Claude Code in this change. The ledger format is documented so they can be added later.
-- The cost of AI code review on the pull request, such as the tokens a review app or a review job in CI spends.
+- The cost of AI review on the pull request by an app or a job in CI, in the tokens that the app or the job spends. A review that the agent runs in its own session is recorded like its other calls.
 - Live cost while a pull request is open. The report runs at merge.
 - GitHub Enterprise Server, which lacks the `job` context values that decision 7 relies on.
+- Repository and CI services other than GitHub, such as GitLab or Gitea.
 - Shell commands sent through Claude Code's PowerShell tool, which is on by default on Windows for claude.ai and Console accounts, always on there without Git Bash, and can be turned on elsewhere. A hook registered for Bash never runs for those commands, so capture stages nothing for a commit made through that tool and does not see a change of branch made through it. The hooks that run whatever the tool, when a turn, a subagent or a session ends, still run on Windows without Git Bash, in PowerShell, so the registered command is written to exit with success there too (DR-031).
 
 ## Decisions
@@ -70,7 +71,7 @@ The store is written only by replacing it whole, under a lock that the operating
 
 ### 2. Python, standard library only
 
-*Records:* DR-023 and DR-126.
+*Records:* DR-023, DR-024 and DR-126.
 
 Development tools (pytest, ruff, mypy, detect-secrets for task 1.2's check, and the testing tools in decision 8) are pinned in `requirements-dev.txt`, and task 1.8 locks their own dependencies too, with hashes.
 
@@ -144,7 +145,7 @@ The hook is a copied file that runs with whatever `python3` and `git` the machin
 
 ### 11. Releases by semantic version, from a tag, with a bill of materials
 
-*Records:* DR-022, DR-024, DR-040, DR-067, DR-073, DR-074, DR-096, DR-097, DR-098, DR-122, DR-123, DR-132, DR-148, DR-149, DR-154, DR-156 and DR-157.
+*Records:* DR-022, DR-024, DR-040, DR-067, DR-073, DR-074, DR-096, DR-097, DR-098, DR-122, DR-123, DR-132, DR-148, DR-149, DR-154, DR-156, DR-157 and DR-161.
 
 A machine-readable manifest of the public surface (DR-154) is kept in the repository, and the release check compares it between the previous release's commit and the tag: a difference with no `### Breaking` section in the changelog entry, or without a raised major number, refuses the release and names what changed.
 

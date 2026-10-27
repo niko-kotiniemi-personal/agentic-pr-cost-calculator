@@ -28,7 +28,7 @@ The ruleset on `main` has no bypass actor, so that no account, the owner's inclu
 
 ## Scope
 
-This covers who may bypass the ruleset on `main`, and DR-072 (The ruleset on `main` requires a pull request and the `ci` check) covers what the ruleset requires. Its approvals are DR-141 (The ruleset on `main` requires no approvals), and its rule that a branch is up to date before it merges is DR-119 (Pull requests merge only when up to date with the default branch). The tag ruleset and its one bypass are DR-073 (Only a deploy key may bypass the tag ruleset).
+This covers who may bypass the ruleset on `main`, and DR-072 (The ruleset on `main` requires a pull request and the `ci` check) covers what the ruleset requires. Its approvals are DR-141 (The ruleset on `main` requires no approvals), and its rule that a branch is up to date before it merges is DR-119 (Pull requests merge only when up to date with the default branch). The tag ruleset's one bypass is DR-073 (Only a deploy key may bypass the tag ruleset), and which tags it covers is DR-161 (The tag ruleset covers every tag).
 
 ## What reversing it would change
 

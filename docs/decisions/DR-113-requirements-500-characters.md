@@ -10,7 +10,7 @@
 
 ## Context
 
-OpenSpec's guidance for writing specs asks that a requirement's description, the text between its heading and its first scenario, be 500 characters or fewer, and calls the limit an informational hint, not an error. When the specs were first split one per feature (DR-104), 27 of their 74 requirements were longer than that, the longest at 2737 characters.
+OpenSpec's guidance for writing specs asks that a requirement's description, the text between its heading and its first scenario, be 500 characters or fewer, and calls the limit an informational hint, not an error. The limit comes from OpenSpec, and the specs keep to it because OpenSpec is the tool that holds them (DR-079). When the specs were first split one per feature (DR-104), 27 of their 74 requirements were longer than that, the longest at 2737 characters.
 
 ## Decision
 
@@ -26,6 +26,7 @@ None were recorded when this was decided.
 - No test, script or workflow in the repository measures a requirement's text.
 - OpenSpec's validator reports a longer text only as information, which fails no validation, even with `--strict`, and only for the main specs, never for a change's own specs. `openspec/specs/` holds no spec yet, so `scripts/verify-openspec.sh` passes on a longer requirement, and OpenSpec reports one only once the change's requirements reach the main specs.
 - OpenSpec's guidance keeps a requirement under MODIFIED whole, never split, trimmed or rewritten only to meet the length.
+- If OpenSpec changes or drops its limit, this record may be replaced, but need not be, as the owner said on 2026-10-27.
 
 ## Scope
 

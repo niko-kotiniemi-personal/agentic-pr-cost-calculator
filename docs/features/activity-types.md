@@ -26,7 +26,7 @@ The tool's name is read only to choose the label. It is never recorded, because 
 
 ## Not covered
 
-- Code review, which cannot be told apart from other work by tool names alone.
+- Code review as an activity type of its own. Tool names alone cannot tell a review apart from other work, so a review's calls are recorded like any others, each under the type of the first tool that it used, as in the table above.
 
 ## How it is validated
 

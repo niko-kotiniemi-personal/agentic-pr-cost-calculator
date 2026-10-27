@@ -30,7 +30,7 @@ None were recorded when this was decided.
 
 ## Scope
 
-This covers which costs a pull request's figure holds. Whom the tool is for is DR-001 (The tool is for teams that build pull requests with AI coding agents), and the cost of AI code review, which the figure leaves out, is DR-004 (The cost of AI code review is left to a later change). Which runs count is DR-019 (CI minutes come from the runs on the pull request's own commits), and how a job's minutes are found is DR-038 (CI minutes come from job times, rounded up per job).
+This covers which costs a pull request's figure holds. Whom the tool is for is DR-001 (The tool is for teams that build pull requests with AI coding agents), and the cost of AI review by an app or a job in CI, which the figure leaves out, is DR-004 (The cost of AI review by an app or a job in CI is left to a later change). Which runs count is DR-019 (CI minutes come from the runs on the pull request's own commits), and how a job's minutes are found is DR-038 (CI minutes come from job times, rounded up per job).
 
 ## What reversing it would change
 

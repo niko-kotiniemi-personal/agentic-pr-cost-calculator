@@ -10,7 +10,7 @@
 
 ## Context
 
-Every worktree of a repository shares capture's one store (DR-011), sessions can run in several worktrees at once, and an agent changes branches as it works. A call recorded in one worktree or on one branch and committed in another would put its usage into the ledger of a pull request that did not spend it (T19).
+Every worktree of a repository shares capture's one store (DR-011), sessions can run in several worktrees at once, and an agent changes branches as it works. A call recorded in one worktree or on one branch and committed in another would put its usage into the ledger of a pull request that did not spend it (T19). A plain clone, with no worktree added, still has one worktree: its checkout, which git calls the main worktree. So this record holds in a plain clone too, and there it matters only when the clone switches to another branch, or to no branch, while calls wait for a commit.
 
 ## Decision
 

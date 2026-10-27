@@ -64,7 +64,7 @@ Change the documentation in the same pull request as what it describes (DR-103):
 - The tool supports Python 3.11 and every later release, with the standard library only. Never use a feature that the oldest supported Python lacks, and never raise that version without the owner's decision (DR-025 and DR-134).
 - A major dependency update waits for the owner's approval. Minor and patch updates, and vulnerability fixes, go ahead.
 - Versions are semantic, released from a tag, each with a bill of materials (DR-096, DR-148 and DR-097). Every change that adopters would notice gets a line under `## [Unreleased]` in `CHANGELOG.md`.
-- The tool, its release and its documentation stay Python and Markdown, plus the YAML and JSON that GitHub and the data need. OpenSpec's Node packages, and the shell scripts and configuration that develop and check the tool, are for development only.
+- The tool, its release and its documentation stay Python and Markdown, plus the YAML and JSON that GitHub, Claude Code's settings and the data need. OpenSpec's Node packages, and the shell scripts and configuration that develop and check the tool, are for development only.
 
 ## Who owns what
 

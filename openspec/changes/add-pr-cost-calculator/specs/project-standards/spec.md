@@ -38,17 +38,17 @@ Tests SHALL fail when a workflow, whether its file ends in `.yml` or `.yaml`, gr
 
 ### Requirement: The tool connects only where its documentation says
 
-The hook SHALL open no network connection. The report SHALL connect only to GitHub's REST API, at the address that the workflow's `GITHUB_API_URL` gives, over HTTPS, with the workflow's own `GITHUB_TOKEN`. Prices SHALL be read from the price table in the repository and never fetched.
+The hook SHALL open no network connection. The report SHALL connect only to GitHub, over HTTPS, with the workflow's own `GITHUB_TOKEN`: to its REST API, at the address that the workflow's `GITHUB_API_URL` gives, and by git to the tool's own repository and the repository it reports on. Prices SHALL be read from the price table in the repository and never fetched.
 
 #### Scenario: The hook opens no connection
 
 - **WHEN** the hook runs, in any of its events
 - **THEN** it opens no network connection
 
-#### Scenario: The report connects only to GitHub's API
+#### Scenario: The report connects only to GitHub
 
 - **WHEN** the report runs
-- **THEN** every connection it opens goes to the host in `GITHUB_API_URL` over HTTPS, and a connection anywhere else fails the test
+- **THEN** every connection it opens goes over HTTPS, to the host in `GITHUB_API_URL` or, by git, to the tool's own repository or the repository it reports on, and a connection anywhere else fails the test
 
 #### Scenario: Prices are never fetched
 

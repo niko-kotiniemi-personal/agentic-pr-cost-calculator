@@ -14,7 +14,7 @@ A release starts when a tag is pushed (DR-148), and adopters pin the commit that
 
 ## Decision
 
-The control is who can create a tag or a release at all: a tag ruleset on every tag that restricts creating, moving and deleting tags, whose only bypass is a deploy key kept on the owner's machine, an identity that agent sessions never hold, not the owner's account, since agent sessions act on GitHub as that account.
+The control is who can create a tag or a release at all: a tag ruleset that restricts creating, moving and deleting tags, whose only bypass is a deploy key kept on the owner's machine, an identity that agent sessions never hold, not the owner's account, since agent sessions act on GitHub as that account.
 
 ## Alternatives
 
@@ -28,8 +28,8 @@ The control is who can create a tag or a release at all: a tag ruleset on every 
 
 ## Scope
 
-This covers who may create, move or delete a tag. That a published release cannot change is DR-074 (Releases are immutable), how a release's version is numbered is DR-096 (Versions are semantic), that each release is made from a tag is DR-148 (Each release is made from a tag), which commit a release tag may name is DR-122 (A release tag names a commit in the default branch's first-parent history), and that only the owner creates, moves or deletes a tag or a release, or changes a setting, is DR-144 (Tags, releases, settings, rulesets and secrets stay with the owner).
+This covers who may create, move or delete a tag. Which tags the ruleset covers is DR-161 (The tag ruleset covers every tag), that a published release cannot change is DR-074 (Releases are immutable), how a release's version is numbered is DR-096 (Versions are semantic), that each release is made from a tag is DR-148 (Each release is made from a tag), which commit a release tag may name is DR-122 (A release tag names a commit in the default branch's first-parent history), and that only the owner creates, moves or deletes a tag or a release, or changes a setting, is DR-144 (Tags, releases, settings, rulesets and secrets stay with the owner).
 
 ## What reversing it would change
 
-No requirement states this. The ruleset itself, its entry among the settings in `docs/threat-model.md`, the design's decision 11, and the answers of T28, T64 and T67, with T67's residual, would change. DR-074, DR-080 and DR-144 would be revisited. The ruleset is not part of the public surface, so the change would not be a breaking one for adopters.
+No requirement states this. The ruleset itself, its entry among the settings in `docs/threat-model.md`, the design's decision 11, and the answers of T28, T64 and T67, with T67's residual, would change. DR-074, DR-080, DR-144 and DR-161 would be revisited. The ruleset is not part of the public surface, so the change would not be a breaking one for adopters.

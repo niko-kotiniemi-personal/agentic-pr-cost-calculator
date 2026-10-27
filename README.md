@@ -21,6 +21,15 @@ Usage is recorded by the directory the session is in, not by which files it touc
 
 The figure is an **API-equivalent estimate**, meaning what the same tokens would cost at list prices. It is not a bill: subscription plans and included CI minutes change what you actually pay.
 
+## Not supported in this first version
+
+- Commands sent through Claude Code's PowerShell tool, which is on by default on Windows for claude.ai and Console accounts: capture does not see a commit or a change of branch made through that tool ([DR-007](docs/decisions/DR-007-powershell-tool-out-of-scope.md)).
+- Agents other than Claude Code, such as Gemini or Codex ([DR-003](docs/decisions/DR-003-claude-code-only.md)).
+- GitHub Enterprise Server ([DR-006](docs/decisions/DR-006-github-com-only.md)).
+- Repository and CI services other than GitHub, such as GitLab or Gitea ([DR-160](docs/decisions/DR-160-github-only.md)).
+
+Each line links the decision record that leaves it out. A later version may add any of these, by a new record that replaces that one.
+
 ## Documentation
 
 - [How it works](docs/how-it-works.md): the product as a whole, with its flows, how a cost is computed, and every credential, permission and outside connection it uses.

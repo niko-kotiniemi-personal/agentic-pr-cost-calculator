@@ -24,6 +24,7 @@ None were recorded when this was decided.
 
 - The report relies on `job.workflow_repository` and `job.workflow_sha` to run only its own code, from the commit that the calling workflow pins, which is part of T23's answer, and to name a hook file that does not come from its own commit (R65).
 - On GitHub Enterprise Server, which lacks those values, the report as designed could do neither.
+- The README lists GitHub Enterprise Server near its top among what this first version does not support.
 
 ## Scope
 
@@ -31,4 +32,4 @@ This covers which GitHub the tool supports. How the report runs its own pinned c
 
 ## What reversing it would change
 
-Supporting GitHub Enterprise Server would need another way for the report to learn its own repository and commit. The design's non-goals and decision 7 would change, and so would T23's answer, which names the `job` context, the flow "A merge and its report" in `docs/how-it-works.md`, and tasks 4.1 and 4.3, which compare the hook file with the one at `job.workflow_sha` and check out the tool's code by it. R24 and R65 in `report-comment` would keep their text but be met another way, and DR-062 and DR-139 would be revisited. Added behaviour alone would raise the minor number, while a change to the public surface, such as the reusable workflow's inputs, would be a breaking one for adopters (DR-096).
+Supporting GitHub Enterprise Server would need another way for the report to learn its own repository and commit. The design's non-goals and decision 7 would change, and so would the README's list of what this first version does not support, T23's answer, which names the `job` context, the flow "A merge and its report" in `docs/how-it-works.md`, and tasks 4.1 and 4.3, which compare the hook file with the one at `job.workflow_sha` and check out the tool's code by it. R24 and R65 in `report-comment` would keep their text but be met another way, and DR-062 and DR-139 would be revisited. Added behaviour alone would raise the minor number, while a change to the public surface, such as the reusable workflow's inputs, would be a breaking one for adopters (DR-096).

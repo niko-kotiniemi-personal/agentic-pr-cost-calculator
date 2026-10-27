@@ -4,7 +4,7 @@
 - **Status:** accepted
 - **Decided by:** the change `add-pr-cost-calculator`
 - **Requirements:** R30
-- **Threats:** none
+- **Threats:** T24
 - **Replaces:** none
 - **Closed by:** none
 
@@ -23,7 +23,7 @@ Capture depends on no service but GitHub and the repository itself: the counts t
 ## Consequences
 
 - The hook uses no token, key or account, and the report uses only the workflow's own `GITHUB_TOKEN` (see `docs/how-it-works.md`).
-- The hook opens no network connection (R30), and every connection that the report makes goes to GitHub.
+- The hook opens no network connection (R30), and every connection that the report makes goes to GitHub (T24).
 - The counts leave the session's machine only in the person's own commits, when they push (DR-010).
 
 ## Scope
@@ -32,4 +32,4 @@ This covers which services the tool depends on to carry the counts. That the hoo
 
 ## What reversing it would change
 
-R30 in `project-standards` would change, with its scenarios "The hook opens no connection" and "The report connects only to GitHub's API", and so would the design's goals and decision 1, the threat model's data flow and trust boundaries, the credentials and connections that `docs/how-it-works.md` lists, with its list of what the tool never does, and tasks 1.13 and 5.3, which check the tool's connections. DR-010 and DR-060 would be revisited. A change to the ledger format, the `.pr-cost/` path, or the reusable workflow's inputs or permissions, which are part of the public surface, would be a breaking one for adopters (DR-096).
+R30 in `project-standards` would change, with its scenarios "The hook opens no connection" and "The report connects only to GitHub", and so would the design's goals and decision 1, the threat model's data flow and trust boundaries, T24's answer, the credentials and connections that `docs/how-it-works.md` lists, with its list of what the tool never does, and tasks 1.13 and 5.3, which check the tool's connections. DR-010 and DR-060 would be revisited. A change to the ledger format, the `.pr-cost/` path, or the reusable workflow's inputs or permissions, which are part of the public surface, would be a breaking one for adopters (DR-096).

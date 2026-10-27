@@ -10,7 +10,7 @@
 
 ## Context
 
-The report's CI figures come from GitHub's API, and what it finds there depends on how the pull request merged (see the design's decision 7). The hook opens no network connection at all, and the report connects only to the host that `GITHUB_API_URL` names (R30).
+The report's CI figures come from GitHub's API, and what it finds there depends on how the pull request merged (see the design's decision 7). The hook opens no network connection at all, and the report connects only to GitHub: to the host that `GITHUB_API_URL` names and, by git, to the tool's own repository and the repository it reports on (R30).
 
 ## Decision
 
@@ -22,9 +22,9 @@ None were recorded when this was decided.
 
 ## Consequences
 
-- Task 1.6 adds the network guard, verified by a test that opens a connection, and task 1.13 gives it the two rules that hold R30: the hook connects nowhere, and the report only to that host, over HTTPS.
+- Task 1.6 adds the network guard, verified by a test that opens a connection, and task 1.13 gives it two rules from R30: the hook connects nowhere, and the report only to that host, over HTTPS.
 - The report's tests run against recorded responses for each way a pull request can merge (task 3.3), as the vendoring script's tests run against a local upstream (`tests/test_vendor_sync.py`).
-- The guard watches the Python process, so it does not see a connection that a git subprocess makes (T45). Capture keeps its git commands offline through their environment instead (R111).
+- The guard watches the Python process, so it does not see a connection that a git subprocess makes (T45). Capture keeps its git commands offline through their environment instead (R111), and task 1.13 checks that the report's git commands, other than the checkout of its own code, reach no remote but that of the repository it reports on.
 - The report meets GitHub's real API only outside the tests, as on the merge of `add-pr-cost-calculator` (DR-147).
 
 ## Scope

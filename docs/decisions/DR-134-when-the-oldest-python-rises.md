@@ -2,7 +2,7 @@
 
 - **Type:** technical
 - **Status:** accepted
-- **Decided by:** the change `add-pr-cost-calculator`, as the owner asked on 2026-10-20
+- **Decided by:** the change `add-pr-cost-calculator`, as the owner asked on 2026-10-20 and 2026-10-27
 - **Requirements:** R26
 - **Threats:** none
 - **Replaces:** none
@@ -10,7 +10,7 @@
 
 ## Context
 
-The oldest supported Python is 3.11 (DR-025). The hook runs with whatever `python3` an adopter's machine has, so each rise of that floor leaves out the adopters who cannot follow it, while each Python version's release schedule sets when it reaches its end of life.
+The oldest supported Python is 3.11 (DR-025). The hook runs with whatever `python3` an adopter's machine has, so each rise of that floor leaves out the adopters who cannot follow it, while each Python version's release schedule sets when it reaches its end of life. On 2026-10-27 the owner explained what the rule is for: developers tend to update a major component, such as Python, only when they must, since it can be a hassle, while the owner wants the tool to run on secure, patched versions that cause no security issues for those who use it. The owner counts the tool among the repositories that patch a critical or major vulnerability when it is found and make no sweeps to change what is not broken.
 
 ## Decision
 
@@ -20,6 +20,7 @@ The oldest supported Python rises only when its version nears its end of life, o
 
 - Raising the floor with each new Python release, which DR-025 records as keeping the tool's own code simplest while leaving adopters behind.
 - Keeping a version as the floor past its end of life, which DR-025 records as not chosen because that version no longer gets security fixes.
+- Raising the floor also when a version's backward compatibility becomes poor, as the owner asked on 2026-10-20. On 2026-10-27 the owner left it to the change whether the rule should include that condition. Poor backward compatibility has no clear measure, so that condition could let the floor rise for convenience rather than need.
 
 ## Consequences
 

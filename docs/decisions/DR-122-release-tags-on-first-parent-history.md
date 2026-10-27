@@ -24,7 +24,7 @@ None were recorded when this was decided.
 
 - A commit that only a fork holds is outside that history too, so no release names one, and an adopter who pins only what a release names never pins one (T58).
 - What a release names has reached the default branch, where changes arrive only through pull requests that pass CI and that the owner merges (T28).
-- The check runs in the release workflow as the tagged commit holds it, so a tag on a commit outside the default branch runs that commit's own copy of the check. It catches a mistaken tag, not a hostile one. The control over releases is who may create a tag or a release (DR-073, DR-074), and T67's residual leaves that to settings that no test reads.
+- The check runs in the release workflow as the tagged commit holds it, so a tag on a commit outside the default branch runs that commit's own copy of the check. It catches a mistaken tag, not a hostile one. The control over releases is who may create a tag or a release (DR-073, DR-074, DR-161), and T67's residual leaves that to settings that no test reads.
 
 ## Scope
 

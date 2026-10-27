@@ -28,7 +28,7 @@ None were recorded when this was decided.
 
 ## Scope
 
-This covers what the ruleset on `main` requires before a change reaches the default branch. That it has no bypass actor is DR-140 (The ruleset on `main` has no bypass actor), that it requires no approvals is DR-141 (The ruleset on `main` requires no approvals), and that a pull request's branch is up to date before it merges is DR-119 (Pull requests merge only when up to date with the default branch). Code-owner review is DR-075 (Code-owner review is off), the tag ruleset is DR-073 (Only a deploy key may bypass the tag ruleset), the aggregate job is DR-043 (CI ends in one aggregate `ci` job), and who decides merges is DR-080 (The owner decides every merge).
+This covers what the ruleset on `main` requires before a change reaches the default branch. That it has no bypass actor is DR-140 (The ruleset on `main` has no bypass actor), that it requires no approvals is DR-141 (The ruleset on `main` requires no approvals), and that a pull request's branch is up to date before it merges is DR-119 (Pull requests merge only when up to date with the default branch). Code-owner review is DR-075 (Code-owner review is off), the tag ruleset is DR-073 (Only a deploy key may bypass the tag ruleset) and DR-161 (The tag ruleset covers every tag), the aggregate job is DR-043 (CI ends in one aggregate `ci` job), and who decides merges is DR-080 (The owner decides every merge).
 
 ## What reversing it would change
 

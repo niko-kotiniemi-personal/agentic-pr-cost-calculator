@@ -2,9 +2,9 @@
 
 - **Type:** architecture
 - **Status:** accepted
-- **Decided by:** the change `add-pr-cost-calculator`
+- **Decided by:** the owner, 2026-10-27
 - **Requirements:** R14, R16, R18, R30, R94
-- **Threats:** T17, T27, T30
+- **Threats:** T17, T24, T27, T30
 - **Replaces:** none
 - **Closed by:** none
 
@@ -25,6 +25,7 @@ Prices come from a price table kept as data in this repository, `prices/models.j
 - A new price counts only once its row is in the table and an adopter pins a commit that holds it. Until then, as the design's risk "[Prices go stale, or a new model appears]" says, a report names the table's date and what it cannot price (DR-124).
 - An adopting repository can change a price only by pinning a different tool, which T21 covers.
 - A row dated after the newest one but before its pull request merges reprices the days in between, which that pull request's diff shows, with the row's source, for review (T30).
+- Since the report fetches no price, it opens no connection to a price service, which could carry its token outside GitHub (T24).
 
 ## Scope
 
@@ -32,4 +33,4 @@ This covers where prices come from and how the table changes. That the figure is
 
 ## What reversing it would change
 
-R14 in `pricing` would change, with its scenarios, and so would R30's sentences on the report's connections and on prices in `project-standards`, with their scenarios "The report connects only to GitHub's API" and "Prices are never fetched", and so would the clauses of R16, R18 and R94 that price by the day or name the table's date. So would the design's decision 4, the answers of T17, T27 and T30, the proposal, the README, the `pricing` feature page, `docs/how-it-works.md`, and tasks 3.1 and 3.2. R122 does not list the price table in the public surface (DR-154). DR-054 and DR-124 would be revisited.
+R14 in `pricing` would change, with its scenarios, and so would R30's sentences on the report's connections and on prices in `project-standards`, with their scenarios "The report connects only to GitHub" and "Prices are never fetched", and so would the clauses of R16, R18 and R94 that price by the day or name the table's date. So would the design's decision 4, the answers of T17, T24, T27 and T30, the proposal, the README, the `pricing` feature page, `docs/how-it-works.md`, and tasks 3.1 and 3.2. R122 does not list the price table in the public surface (DR-154). DR-054 and DR-124 would be revisited.

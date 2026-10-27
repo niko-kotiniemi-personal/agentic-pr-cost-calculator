@@ -8,12 +8,12 @@ A record that the default branch holds is accepted, and from then on it changes 
 |---|---|---|---|---|---|---|
 | [DR-001](DR-001-who-the-tool-is-for.md) | The tool is for teams that build pull requests with AI coding agents | scope | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-17 | R20 | none |
 | [DR-002](DR-002-an-estimate-not-a-bill.md) | The figure is an estimate at list prices, not a bill | scope | accepted | the change `add-pr-cost-calculator` | R94 | T16, T27 |
-| [DR-003](DR-003-claude-code-only.md) | Claude Code is the only agent `add-pr-cost-calculator` captures | scope | accepted | the change `add-pr-cost-calculator` | R7, R13, R76 | none |
-| [DR-004](DR-004-code-review-cost-later.md) | The cost of AI code review is left to a later change | scope | accepted | the owner, 2026-10-18 | R20, R94 | none |
+| [DR-003](DR-003-claude-code-only.md) | Claude Code is the only agent `add-pr-cost-calculator` captures | scope | accepted | the owner, 2026-10-27 | R7, R13, R76 | none |
+| [DR-004](DR-004-code-review-cost-later.md) | The cost of AI review by an app or a job in CI is left to a later change | scope | accepted | the owner, 2026-10-18 and 2026-10-27 | R20, R94 | none |
 | [DR-005](DR-005-report-at-merge-only.md) | The report runs once, at merge | scope | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-17 | R20, R68 | T23, T29 |
 | [DR-006](DR-006-github-com-only.md) | GitHub.com only, not GitHub Enterprise Server | scope | accepted | the change `add-pr-cost-calculator` | none | T23 |
-| [DR-007](DR-007-powershell-tool-out-of-scope.md) | Commands sent through the PowerShell tool are out of scope | scope | accepted | the change `add-pr-cost-calculator` | R7 | T8, T19 |
-| [DR-008](DR-008-no-outside-service.md) | Capture uses no service outside GitHub and the repository | architecture | accepted | the change `add-pr-cost-calculator` | R30 | none |
+| [DR-007](DR-007-powershell-tool-out-of-scope.md) | Commands sent through the PowerShell tool are out of scope | scope | accepted | the owner, 2026-10-27 | R7 | T8, T19 |
+| [DR-008](DR-008-no-outside-service.md) | Capture uses no service outside GitHub and the repository | architecture | accepted | the change `add-pr-cost-calculator` | R30 | T24 |
 | [DR-009](DR-009-capture-through-hooks.md) | Capture reads the transcripts through hooks while the session runs | architecture | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-17 | R7, R13, R44, R90 | T8, T14, T40, T42 |
 | [DR-010](DR-010-usage-in-the-agents-commits.md) | Usage travels inside the agent's own commits | architecture | accepted | the change `add-pr-cost-calculator` | R7 | T8, T10, T16 |
 | [DR-011](DR-011-calls-wait-in-the-git-directory.md) | Recorded calls wait in the git directory | architecture | accepted | the change `add-pr-cost-calculator` | R11, R47 | T10, T13, T38, T42, T44 |
@@ -25,11 +25,11 @@ A record that the default branch holds is accepted, and from then on it changes 
 | [DR-017](DR-017-usage-is-what-the-merge-adds.md) | A pull request's usage is the ledger files its merge adds | architecture | accepted | the change `add-pr-cost-calculator` | R58, R119 | T19, T20, T22 |
 | [DR-018](DR-018-report-runs-on-the-merge-push.md) | The report runs on the push that a merge makes to the default branch | architecture | accepted | the change `add-pr-cost-calculator` | R68 | T23, T50 |
 | [DR-019](DR-019-ci-from-the-pull-requests-commits.md) | CI minutes come from the runs on the pull request's own commits | architecture | accepted | the change `add-pr-cost-calculator` | R23, R62, R120 | T22 |
-| [DR-020](DR-020-dated-price-table.md) | Prices come from a dated price table in the repository | architecture | accepted | the change `add-pr-cost-calculator` | R14, R16, R18, R30, R94 | T17, T27, T30 |
+| [DR-020](DR-020-dated-price-table.md) | Prices come from a dated price table in the repository | architecture | accepted | the owner, 2026-10-27 | R14, R16, R18, R30, R94 | T17, T24, T27, T30 |
 | [DR-021](DR-021-one-file-switch.md) | One file, `.pr-cost.json`, turns the tool on or off | architecture | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-17 | R1, R19, R36, R91 | T49 |
 | [DR-022](DR-022-hook-is-a-copied-file.md) | Adopters copy the hook file from a pinned commit | architecture | accepted | the change `add-pr-cost-calculator` | R12, R53, R72, R88 | T28, T54, T59, T60, T69 |
 | [DR-023](DR-023-standard-library-only.md) | The hook and the report use Python's standard library only | technical | accepted | the change `add-pr-cost-calculator` | R12, R25 | T28 |
-| [DR-024](DR-024-python-and-markdown.md) | The tool, its release and its documentation are Python and Markdown | technical | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-20 | none | none |
+| [DR-024](DR-024-python-and-markdown.md) | The tool, its release and its documentation are Python and Markdown | technical | accepted | the owner, 2026-10-20 and 2026-10-27 | none | none |
 | [DR-025](DR-025-oldest-python-3-11.md) | The oldest supported Python is 3.11 | technical | accepted | the owner, 2026-10-20 | R25, R32 | T56 |
 | [DR-026](DR-026-one-source-for-the-python-floor.md) | `requires-python` is the one source of the oldest supported Python | technical | accepted | the change `add-pr-cost-calculator` | R99 | T55 |
 | [DR-027](DR-027-hook-checks-its-floors.md) | The hook checks its Python and git versions first | technical | accepted | the change `add-pr-cost-calculator` | R32, R99, R110 | T56 |
@@ -139,7 +139,7 @@ A record that the default branch holds is accepted, and from then on it changes 
 | [DR-131](DR-131-call-counted-once-in-history.md) | A call counts at most once in the default branch's history | technical | accepted | the change `add-pr-cost-calculator` | R59, R67, R119 | T17, T19, T47, T48 |
 | [DR-132](DR-132-report-is-a-reusable-workflow.md) | The report is a reusable workflow that adopters call | architecture | accepted | the change `add-pr-cost-calculator` | R122 | T24, T29 |
 | [DR-133](DR-133-one-pull-request-per-comment.md) | A push gets a comment only when all its commits belong to one pull request | technical | accepted | the change `add-pr-cost-calculator` | R60, R69 | T19, T20 |
-| [DR-134](DR-134-when-the-oldest-python-rises.md) | The oldest supported Python rises only near its end of life or for a security fix | technical | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-20 | R26 | none |
+| [DR-134](DR-134-when-the-oldest-python-rises.md) | The oldest supported Python rises only near its end of life or for a security fix | technical | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-20 and 2026-10-27 | R26 | none |
 | [DR-135](DR-135-unknown-usage-fields-counted.md) | A call with an unknown usage field is counted from the fields capture knows | technical | accepted | the change `add-pr-cost-calculator` | R43, R95 | T39 |
 | [DR-136](DR-136-only-a-hash-of-the-message-id.md) | Only a hash of a call's message id is kept | security and privacy | accepted | the change `add-pr-cost-calculator` | R2, R4 | T4, T43 |
 | [DR-137](DR-137-store-format-versioned.md) | The store states its format's version | technical | accepted | the change `add-pr-cost-calculator` | R55 | T44 |
@@ -165,3 +165,5 @@ A record that the default branch holds is accepted, and from then on it changes 
 | [DR-157](DR-157-a-component-other-repositories-take-in.md) | The tool is a component that other repositories take in | scope | accepted | the owner, 2026-10-20 | R71, R122 | T28 |
 | [DR-158](DR-158-how-a-record-names-things.md) | A record names other things by ID, number or path, and its change by name | process | accepted | the change `add-pr-cost-calculator` | R126, R127 | T75 |
 | [DR-159](DR-159-records-and-threats-name-each-other.md) | A record and the threats it lists name each other | process | accepted | the change `add-pr-cost-calculator` | R131 | T78, T80 |
+| [DR-160](DR-160-github-only.md) | GitHub is the only repository and CI service `add-pr-cost-calculator` supports | scope | accepted | the owner, 2026-10-27 | R30 | T24 |
+| [DR-161](DR-161-tag-ruleset-on-every-tag.md) | The tag ruleset covers every tag | security and privacy | accepted | the owner, 2026-10-27 | none | T28, T67 |

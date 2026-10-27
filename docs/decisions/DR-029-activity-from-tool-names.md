@@ -28,8 +28,8 @@ None were recorded when this was decided.
 
 ## Scope
 
-This covers how a call's activity type is chosen, and what becomes of the tool names read for it. The cost of AI code review is DR-004 (The cost of AI code review is left to a later change), and the rest of what an entry may hold is DR-045 (Ledger entries hold counts, never content).
+This covers how a call's activity type is chosen, and what becomes of the tool names read for it. The cost of AI review by an app or a job in CI is DR-004 (The cost of AI review by an app or a job in CI is left to a later change), and the rest of what an entry may hold is DR-045 (Ledger entries hold counts, never content).
 
 ## What reversing it would change
 
-R6 in `activity-types` would change, with its scenarios, and so would the ban on tool names in R4 in `ledger`. So would the design's decision 5, T1's answer, the `activity-types` feature page, the README's list of activities, the statements in the proposal, `SECURITY.md`, `docs/how-it-works.md` and the `ledger` feature page that no tool name is recorded, and tasks 1.1 and 2.5. A change that recorded tool names would change the ledger format, which is part of the public surface, so it would be a breaking one for adopters (DR-096). DR-004, which leaves review to a later change, and DR-045 would be revisited.
+R6 in `activity-types` would change, with its scenarios, and so would the ban on tool names in R4 in `ledger`. So would the design's decision 5, T1's answer, the `activity-types` feature page, the README's list of activities, the statements in the proposal, `SECURITY.md`, `docs/how-it-works.md` and the `ledger` feature page that no tool name is recorded, and tasks 1.1 and 2.5. A change that recorded tool names would change the ledger format, which is part of the public surface, so it would be a breaking one for adopters (DR-096). DR-004, which leaves AI review by an app or a job in CI to a later change, and DR-045 would be revisited.
