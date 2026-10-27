@@ -33,7 +33,7 @@ A record that the default branch holds is accepted, and from then on it changes 
 | [DR-025](DR-025-oldest-python-3-11.md) | The oldest supported Python is 3.11 | technical | accepted | the owner, 2026-10-20 | R25, R32 | T56 |
 | [DR-026](DR-026-one-source-for-the-python-floor.md) | `requires-python` is the one source of the oldest supported Python | technical | accepted | the change `add-pr-cost-calculator` | R99 | T55 |
 | [DR-027](DR-027-hook-checks-its-floors.md) | The hook checks its Python and git versions first | technical | accepted | the change `add-pr-cost-calculator` | R32, R99, R110 | T56 |
-| [DR-028](DR-028-renovate-policy.md) | Renovate waits 14 days, and proposes vulnerability fixes at once | technical | accepted | the owner, 2026-10-17 | R26 | T28 |
+| [DR-028](DR-028-renovate-policy.md) | Renovate waits 14 days, and proposes vulnerability fixes at once | technical | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-17 and 2026-10-20 | R26 | T28 |
 | [DR-029](DR-029-activity-from-tool-names.md) | Activity types come from tool names, which are never recorded | technical | accepted | the change `add-pr-cost-calculator`, as the owner asked on 2026-10-17 | R4, R6 | T1 |
 | [DR-030](DR-030-bash-hooks-only-for-git.md) | The Bash hooks run only for commands that run git | technical | accepted | the change `add-pr-cost-calculator` | R7 | T8, T19 |
 | [DR-031](DR-031-command-ends-in-exit-0.md) | The registered command ends in `; exit 0` | technical | accepted | the change `add-pr-cost-calculator` | R13 | T14 |

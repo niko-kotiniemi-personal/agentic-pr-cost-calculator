@@ -2,7 +2,7 @@
 
 - **Type:** technical
 - **Status:** accepted
-- **Decided by:** the owner, 2026-10-17
+- **Decided by:** the change `add-pr-cost-calculator`, as the owner asked on 2026-10-17 and 2026-10-20
 - **Requirements:** R26
 - **Threats:** T28
 - **Replaces:** none
