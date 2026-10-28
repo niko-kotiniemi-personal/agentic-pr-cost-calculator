@@ -352,14 +352,19 @@ A fact whose subject no test may reach, such as Claude Code or GitHub, SHALL NOT
 - **WHEN** a page of the assumptions, or a file that a fact names as reproducing what was seen, holds a path under a home folder or a session identifier
 - **THEN** a test fails and names the file and the line, and quotes neither
 
-### Requirement: The riskiest assumptions come first
+### Requirement: The assumptions with the most at stake come first
 
-The assumptions SHALL be listed in order of the highest risk among the threats that rest on them, as the threat model rates those threats, with the assumptions that no threat rests on last. Each line of the index SHALL give the highest impact among those threats beside that risk. Tests SHALL fail when the list's order differs from the order that the threat model's ratings give, or a line of the index does not give both ratings as the threat model does.
+The assumptions SHALL be listed by the highest impact among the threats that rest on them, as the threat model rates those threats, then with the least checked first, then by the highest risk among those threats, with the assumptions that no threat rests on last. Each line of the index SHALL give that impact beside that risk. Tests SHALL fail when the list's order differs from the order that these give, or a line of the index does not give both ratings as the threat model does.
 
 #### Scenario: An assumption out of order fails CI
 
-- **WHEN** a threat's rating changes, and an assumption that the threat rests on no longer stands in order of risk
+- **WHEN** a threat's rating or a fact's check changes, and an assumption no longer stands in the order that they give
 - **THEN** a test fails and names the assumption
+
+#### Scenario: An assumption behind a threat of higher impact comes first
+
+- **WHEN** one assumption rests on a threat of impact 3 and likelihood 1, and another only on threats of lower impact and higher risk
+- **THEN** the first stands before the second, or a test fails and names it
 
 #### Scenario: An index line without the impact fails CI
 

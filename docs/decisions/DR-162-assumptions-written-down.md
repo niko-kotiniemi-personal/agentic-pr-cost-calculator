@@ -32,7 +32,7 @@ The assumptions are written down in one place, each with what rests on it, by re
 
 ## Scope
 
-This covers what is written down about each assumption and how each of its facts is checked. How the assumptions are grouped and ordered is DR-163 (The assumptions are grouped, and listed riskiest first), the words they use are DR-164 (A glossary sets the words that the specs and pages use, and a test holds them), and what they are to an agent that reads them is DR-166 (The glossary, the assumptions and the pages they link to describe, and never steer).
+This covers what is written down about each assumption and how each of its facts is checked. How the assumptions are grouped and ordered is DR-163 (The assumptions are grouped, and listed with the most at stake first), the words they use are DR-164 (A glossary sets the words that the specs and pages use, and a test holds them), and what they are to an agent that reads them is DR-166 (The glossary, the assumptions and the pages they link to describe, and never steer).
 
 ## What reversing it would change
 

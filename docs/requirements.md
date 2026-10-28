@@ -147,7 +147,7 @@ The capability names the spec that holds the requirement. Each capability is one
 | R133 | non-functional | `project-standards` | The records' folder holds only the records and their index |
 | R134 | non-functional | `project-standards` | No attribute hides a record's diff |
 | R135 | non-functional | `project-standards` | The assumptions the design rests on are written down |
-| R136 | non-functional | `project-standards` | The riskiest assumptions come first |
+| R136 | non-functional | `project-standards` | The assumptions with the most at stake come first |
 | R137 | non-functional | `project-standards` | The specs and pages use the glossary's words |
 | R138 | non-functional | `project-standards` | Each term is defined once |
 | R139 | non-functional | `project-standards` | Every version reproduces the golden set |
