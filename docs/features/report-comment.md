@@ -1,0 +1,31 @@
+# The report comment
+
+When a pull request merges with the tool on, a workflow posts one short comment on it with what it cost.
+
+**Status:** designed, not built yet.
+
+**Spec:** `report-comment`
+
+**Requirements:** R20, R94, R95, R96, R65, R21, R97, R98, R23, R66, R67, R24, R68, R69, R70, R35, R102
+
+## Expected behaviour
+
+- **What it shows.** The total cost; the cost by model, by token type and by activity type; the CI minutes and their cost; the price table's date; the tool's version; how many ledger entries were counted, and how many were not, for each reason; how many calls capture refused; how many it read without a stop reason, with a note that the token cost is then a lower bound, and how many carried a usage field that capture does not know, with a note that the token cost may be low. It also says when the hook file at the merged commit differs from the one at the report's own commit.
+- **What it says about itself.** That the figure is an API-equivalent estimate, not a bill, and that it counts the usage that the pull request's commits carry and the CI runs on those commits. Calls that Claude Code's own tools make to a model, such as a web fetch's summary, are counted only where the transcript records them.
+- **Only its own words.** The comment, the job summary and the log hold numbers, the report's fixed text, and names that the price table lists. It never quotes ledger lines, file names, branch names, job names or any other text from the pull request.
+- **One comment.** A second run updates the report's own comment and no one else's.
+- **Within bounds.** The report reads ledger files from git as data, refuses anything in the ledger folder that is not a regular file, and refuses a ledger change above the documented size bound while still reporting the CI cost. Each ledger line is held to the ledger format: a count that is not a whole number within the ceiling, a field given twice or unknown, a line nested too deeply or a day that is not a date is refused and counted, and the report completes.
+- **When there is no comment.** A push that merges no pull request, or more than one, or that has more commits than the report's call budget allows, gets no comment, and the report says why in its job summary.
+- **A budget that runs short.** A pull request whose runs and jobs take more calls to read than the budget leaves still gets its comment, with its CI cost marked incomplete, as the CI minutes page says.
+
+## How it is validated
+
+This feature is validated first by its spec's scenarios: each gets an acceptance test before its code, seen to fail for the expected reason (task 1.4). Then come the checks that DR-084 to DR-093 and DR-109 apply to all the tool's code. Beyond those, this feature has its own:
+
+- A property test that no planted string reaches the comment, the job summary or the log (task 4.1), and unit tests at every boundary of the ledger format (task 4.2).
+- Tests that the report refuses every event but the push that a merge makes, and that the token is in none of its outputs (task 4.3).
+- End to end: this repository's own merge posts a report whose figures can be recomputed from its ledger, the price table and the jobs API (task 7.1).
+
+## See also
+
+- `report-comment` in `openspec/`, and design decision 7 of `add-pr-cost-calculator`.
