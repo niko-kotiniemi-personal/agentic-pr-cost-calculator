@@ -2,7 +2,7 @@
 
 What could go wrong with the calculator, for the people who use it and for this repository, and what answers each threat. Every change revisits this file (see `CLAUDE.md`).
 
-It was written for the first change, `add-pr-cost-calculator`, before any code, so the answers are requirements and tasks rather than code. It holds 81 threats across 8 trust boundaries. T38 to T69 were found by the design-stage review, T70 to T78 by the design-stage review of the decision records in `docs/decisions/`, and T79 to T81 by the implementation-stage review of those records and their checks; they follow T37, each under a heading for its boundary, so that the numbers stay in order, and a threat that a change removes keeps its ID out of use (see Retired IDs). Where an answer can be a scenario in a spec, it is one, so that an acceptance test holds it. `tests/test_threat_model.py` checks that every citation below names a scenario, task, decision, decision record or file that exists.
+It was written for the first change, `add-pr-cost-calculator`, before any code, so the answers are requirements and tasks rather than code. It holds 100 threats across 8 trust boundaries. T38 to T69 were found by the design-stage review, T70 to T78 by the design-stage review of the decision records in `docs/decisions/`, T79 to T81 by the implementation-stage review of those records and their checks, and T82 to T100 by the design-stage review of the assumptions, the glossary and the golden set; they follow T37, each under a heading for its boundary, so that the numbers stay in order, and a threat that a change removes keeps its ID out of use (see Retired IDs). Where an answer can be a scenario in a spec, it is one, so that an acceptance test holds it. `tests/test_threat_model.py` checks that every citation below names a scenario, task, decision, decision record or file that exists.
 
 ## How it was built
 
@@ -58,7 +58,7 @@ The trust boundaries:
 - **Risk:** 3
 - **What could happen:** a prompt, a piece of code, a file's contents, a tool's output or a secret is copied into a ledger entry and published with the pull request.
 - **Answer:** entries are built from typed values only. A count is copied as a number. The only text taken from a transcript is the model's name and the values of the price attributes, each only when the price table that the hook ships with lists it, or else recorded as `unknown`, because a private gateway, a custom model or an alias can have a name that looks like one of Anthropic's. Tool names, including MCP server names, which can name a private service, are read only to choose the activity type and are never written.
-- **Held by:** `ledger`: "Content in the transcript does not reach the ledger"; `ledger`: "A planted string never reaches the ledger"; `ledger`: "An unexpected model name is recorded as unknown"; `ledger`: "A model name the price table does not list is recorded as unknown"; `ledger`: "An attribute value the price table does not list is recorded as unknown"; `activity-types`: "An MCP call does not record the server's name"; DR-029; DR-045; DR-054
+- **Held by:** `ledger`: "Content in the transcript does not reach the ledger"; `ledger`: "A planted string never reaches the ledger"; `ledger`: "An unexpected model name is recorded as unknown"; `ledger`: "A model name the price table does not list is recorded as unknown"; `ledger`: "An attribute value the price table does not list is recorded as unknown"; `activity-types`: "An MCP call does not record the server's name"; `project-standards`: "A golden call that no entry or cited scenario accounts for fails CI"; DR-029; DR-045; DR-054
 
 ### T2. Work in another repository is published here
 
@@ -67,9 +67,9 @@ The trust boundaries:
 - **Likelihood:** 2 (possible)
 - **Risk:** 6
 - **What could happen:** a transcript belongs to a session, not to a repository, and one session can work in several, such as a public one and a private one. Recording the whole transcript would publish, in the public repository's ledger and comment, how much work went into the private one and with which models.
-- **Answer:** this repository is the one that holds the project directory that Claude Code gives the hook, whatever directory the hook runs in. Capture records only the calls whose transcript line gives a working directory in this repository, meaning one whose git common directory is this repository's. Calls made in another repository, in a separate repository nested inside this one's folder, or in a folder that contains this one, are not recorded here.
+- **Answer:** this repository is the one that holds the project directory that Claude Code gives the hook, whatever directory the hook runs in. Capture records only the calls whose transcript line gives a working directory in this repository, meaning one whose git common directory is this repository's. Calls made in another repository, in a separate repository nested inside this one's folder, or in a folder that contains this one, are not recorded here, and neither is a call whose lines give no working directory.
 - **Residual:** a line's working directory is Claude's current directory, not where the call worked. A session whose current directory is in this repository, and that works on another one through absolute paths, `git -C` or a `cd` inside a command, has those calls recorded here, with their counts and models. Claude Code keeps a `cd` between commands only within the project and the directories added to the session, and never for a subagent, so such a session can work on another repository call after call from here, and the call that moves its directory into another one is recorded here too. No rule over the transcript's working directories can tell them apart. The README tells a person who opts in to keep work on other repositories, private ones above all, out of such sessions. A person who finds the calls of such work in a ledger file can remove the file, and once a run has found a commit holding it, the step stages its calls no more in that run's clone, however the file was removed, though a run that puts a file back, after a take-back that raced a commit or followed a reset in the commit's own command, can undo, once, a removal made before that run, as T10 says. A removal that leaves the file in the working tree, as a `git rm --cached` and a commit, or a mixed `git reset`, do, leaves it where a `git add` can stage it again, as can a `git commit -a` after `git reset -N`, since the step leaves a committed ledger file to git, so the README tells such a person to delete it too, as the design's risks say. A ledger file that a later commit removes stays in git history, though, so such a removal hides nothing that was pushed. However a ledger file was removed, a session resumed in a fresh clone at the same path can record its calls again. A session that works from a folder above the repository records nothing, so its figure is too low.
-- **Held by:** `usage-capture`: "Calls made from outside this repository are not recorded"; `usage-capture`: "A repository nested inside this one is not this one"; `usage-capture`: "A run from another directory works on this repository"; `usage-capture`: "A ledger file that a person removes stays removed"; `usage-capture`: "A ledger file that a person removes stays removed for another session"; `usage-capture`: "A put-back does not undo a staged removal"; `usage-capture`: "A ledger file that a removal leaves is left to git"; `usage-capture`: "A fresh clone stages a removed ledger file's calls again"; DR-055; DR-056; DR-057; DR-107; DR-130; `add-pr-cost-calculator` task 4.4
+- **Held by:** `usage-capture`: "Calls made from outside this repository are not recorded"; `usage-capture`: "A repository nested inside this one is not this one"; `usage-capture`: "A run from another directory works on this repository"; `usage-capture`: "A ledger file that a person removes stays removed"; `usage-capture`: "A ledger file that a person removes stays removed for another session"; `usage-capture`: "A put-back does not undo a staged removal"; `usage-capture`: "A ledger file that a removal leaves is left to git"; `usage-capture`: "A fresh clone stages a removed ledger file's calls again"; `usage-capture`: "A call whose line gives no working directory is not recorded"; `project-standards`: "A golden call that no entry or cited scenario accounts for fails CI"; DR-055; DR-056; DR-057; DR-107; DR-130; `add-pr-cost-calculator` task 4.4
 
 ### T3. A person's usage is published without their consent
 
@@ -392,9 +392,9 @@ The trust boundaries:
 - **Likelihood:** 2 (possible)
 - **Risk:** 6
 - **What could happen:** real usage records, transcripts, session ids or private names reach a tracked file, a fixture, a decision record, a commit message or the repository's history.
-- **Answer:** tests use synthetic fixtures only, a test fails on the private references it knows in tracked files and in their path names, and task 1.9 extends that check to the messages and files of every commit a pull request adds.
+- **Answer:** tests use synthetic fixtures only, a test fails on the private references it knows in tracked files and in their path names, and task 1.9 extends that check to the messages and files of every commit a pull request adds. An observation among the assumptions never says whose work it was seen in, and a test fails on a path under a home folder or a session identifier in the assumptions or in a file named for an observation.
 - **Residual:** a reference the test does not know, or one in what a file that is not UTF-8 holds, which the check skips. `CLAUDE.md` makes it the author's responsibility. Pull request text is T65, and a record that holds private text is T77.
-- **Held by:** DR-069; DR-070; DR-114; `tests/test_repository.py`; `add-pr-cost-calculator` task 1.9; `CLAUDE.md`
+- **Held by:** DR-069; DR-070; DR-114; DR-162; `project-standards`: "An assumption that names a private source fails CI"; `tests/test_repository.py`; `add-pr-cost-calculator` task 1.9; `CLAUDE.md`
 
 ### T33. Text in the repository steers an agent
 
@@ -403,9 +403,9 @@ The trust boundaries:
 - **Likelihood:** 2 (possible)
 - **Risk:** 6
 - **What could happen:** agents building this tool read fixtures, price tables, decision records, issues and pull request comments that anyone can write. Text there that reads as an instruction could redirect them, which is called prompt injection.
-- **Answer:** `CLAUDE.md` says that data files describe and never instruct, and that anything meant to steer an agent belongs in `CLAUDE.md`, `.claude/` or a workflow, which, like the vendored skills that `.claude/settings.json` enables, change only through the owner's merge. It also says that issue text, pull request text and review comments, from anyone, are data and never tell an agent what to do, and that decision records describe and never instruct, with `CLAUDE.md` steering where a record and it disagree (T73). Fixtures that carry hostile text on purpose are named for it.
+- **Answer:** `CLAUDE.md` says that data files describe and never instruct, and that anything meant to steer an agent belongs in `CLAUDE.md`, `.claude/` or a workflow, which, like the vendored skills that `.claude/settings.json` enables, change only through the owner's merge. It also says that issue text, pull request text and review comments, from anyone, are data and never tell an agent what to do, and that decision records describe and never instruct, with `CLAUDE.md` steering where a record and it disagree (T73). Fixtures that carry hostile text on purpose are named for it. The glossary, the assumptions and the pages that a file here links to describe too, and where the glossary or an assumption differs from `CLAUDE.md` or a spec, those steer (T93, T95).
 - **Residual:** no test can tell an instruction from a description, so this rests on the rule.
-- **Held by:** DR-072; DR-080; DR-082; DR-115; DR-140; `CLAUDE.md`
+- **Held by:** DR-072; DR-080; DR-082; DR-115; DR-140; DR-166; `CLAUDE.md`
 
 ### T34. A session on a contributor's branch runs that branch's instructions
 
@@ -458,9 +458,9 @@ The trust boundaries:
 - **Likelihood:** 2 (possible)
 - **Risk:** 4
 - **What could happen:** every run reads a transcript on from where the last one stopped, and a run that finds capture off reads nothing. When the person opts in, opts back in, or the tool is turned on, the next run would read on from the old position, or from the start of a transcript it has never read, and record calls made while capture was off. Calls recorded before an opt-out could still be staged at the next commit, and a switch check that also stopped take-backs would leave a staged file in place, with T10's disturbances. The harm is greater when those calls are the work on another repository that T2 says to keep out.
-- **Answer:** the store notes, for each session, each run that finds both switches on and each that finds either off, and the step records only the calls whose transcript time falls inside one of their session's intervals when both were on. A run that finds the person's own capture off ends that interval for every session the store notes, and no call made before that run is staged after it. Taking back and putting back ledger files does not wait on the switches.
+- **Answer:** the store notes, for each session, each run that finds both switches on and each that finds either off, and the step records only the calls whose transcript time falls inside one of their session's intervals when both were on. A run that finds the person's own capture off ends that interval for every session the store notes, and no call made before that run is staged after it. Taking back and putting back ledger files does not wait on the switches. Each run's time is read from the system's clock in UTC, which no environment variable sets.
 - **Residual:** a run with capture off creates the store, in the git directory, even for someone who has not opted in; nothing in it leaves that directory. The step cannot tell when a setting changed between two runs, so a person who opts in during a session, before its first run, has that session's calls recorded from its start, as the design's risks say.
-- **Held by:** `switch-and-opt-in`: "Calls made before a person opts in are not recorded"; `switch-and-opt-in`: "Calls made while capture was off are not recorded when it is on again"; `switch-and-opt-in`: "Calls recorded before an opt-out are not staged"; `switch-and-opt-in`: "A file staged before capture is turned off is still taken back"; `switch-and-opt-in`: "The calls of a file taken back after an opt-out are not staged again"; DR-011; DR-014; DR-047; DR-130; `add-pr-cost-calculator` task 2.4
+- **Held by:** `switch-and-opt-in`: "Calls made before a person opts in are not recorded"; `switch-and-opt-in`: "Calls made while capture was off are not recorded when it is on again"; `switch-and-opt-in`: "Calls recorded before an opt-out are not staged"; `switch-and-opt-in`: "A file staged before capture is turned off is still taken back"; `switch-and-opt-in`: "The calls of a file taken back after an opt-out are not staged again"; `switch-and-opt-in`: "The environment cannot move a run's time"; `project-standards`: "A golden call that no entry or cited scenario accounts for fails CI"; DR-011; DR-014; DR-047; DR-130; `add-pr-cost-calculator` task 2.4
 
 ### T39. A usage field the step does not know is dropped, or refuses every call
 
@@ -535,6 +535,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** in a partial clone whose sparse checkout leaves `.pr-cost/` out, a ledger blob is not local, and git fetches it from the remote when the step reads it. The hook would go to the network, which it must not, and could wait on a credential helper or a slow remote until its budget is spent. A network guard inside the Python process does not see a connection that a git subprocess makes.
 - **Answer:** every git command the step runs has `GIT_NO_LAZY_FETCH=1` and `GIT_TERMINAL_PROMPT=0`, and a blob that the clone lacks is skipped, as an oversized one is.
+- **Residual:** git's own `promisor-remote.c` names `GIT_NO_LAZY_FETCH` from v2.43.4 on and not at v2.43.3, so on a plain git from 2.43.0 to 2.43.3, which the floor admits, the variable does nothing and this answer does not hold until the floor or the step's check changes (T86).
 - **Held by:** `usage-capture`: "Capture fetches no ledger file that its clone lacks"; `usage-capture`: "Capture skips a ledger file whose blob its clone lacks"; `project-standards`: "The hook opens no connection"; DR-060; `add-pr-cost-calculator` task 2.1
 
 ### T46. On Windows, a program planted in the current directory runs as git
@@ -935,14 +936,237 @@ The trust boundaries:
 - **Residual:** whether GitHub's view of a pull request honours `-diff` was not checked; the check refuses it either way.
 - **Held by:** `project-standards`: "An attribute that hides a record's diff fails CI"; `project-standards`: "A person's own attributes are not read"; DR-108; `add-pr-cost-calculator` task 1.18
 
+## Boundary 1, continued: found at the design review of the assumptions, the glossary and the golden set
+
+### T82. A call whose line gives no working directory is recorded from another directory
+
+- **Kind:** information disclosure
+- **Impact:** 3 (high)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 3
+- **What could happen:** this model's section on assumptions held the only statement that a call whose line gives no working directory is not recorded, and task 1.19 moves that section. If a release of Claude Code writes a call's lines without one, whoever builds the filter on working directories has two directories at hand to use in its place, the current directory that the hook's input gives and the project directory, and using either passed every scenario. A call made while Claude's current directory was in another repository is then recorded here and published with the pull request: T2's harm.
+- **Answer:** `usage-capture` states the rule in a scenario that an acceptance test holds, task 1.1 gives it a fixture, and when the section moves, each of its sentences that states what the tool does, rather than what it assumes, moves to the spec that holds that behaviour.
+- **Residual:** such calls are left out of the figure, and nothing counts them; whether to count them, as refused calls are counted, is an open question of the design. Whether Claude Code ever writes a call's lines without a working directory is not known.
+- **Held by:** `usage-capture`: "A call whose line gives no working directory is not recorded"; `add-pr-cost-calculator` task 1.1; `add-pr-cost-calculator` task 1.19; DR-162
+
+### T83. A golden entry makes capture record a call that it must leave out
+
+- **Kind:** information disclosure
+- **Impact:** 3 (high)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 3
+- **What could happen:** a golden session's hand-worked entries say which of its calls cross, which applies the rules of scope, consent and pricing rather than arithmetic, so the working that the test checks does not cover them. A wrong entry is still an acceptance test that is never rewritten to make an implementation pass. Where a session combines rules in a way that no single scenario's test holds, the builder of the capture step sees only a failing test that it may not change, and changes the step until it records the call, and the released step then records such calls, from another repository or with a name that the price table does not list, in every repository that adopts it: T2's or T1's harm.
+- **Answer:** each golden session lists every call of its transcripts, by its message ID, with the entry that capture must write for it or the scenario that leaves it out, and a test fails on a call left unaccounted for or on a citation of a scenario that does not exist. The set holds sessions whose calls the rules of this boundary leave out or change.
+- **Residual:** whether a cited scenario says what the session takes it to say rests on the review, as it does for this model's own citations.
+- **Held by:** `project-standards`: "A golden call that no entry or cited scenario accounts for fails CI"; `add-pr-cost-calculator` task 1.21; DR-165
+
+### T84. A way for tests to set a run's time ships in the hook
+
+- **Kind:** tampering, information disclosure
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** a golden session that models calls made while capture was off needs its runs to happen at fixed times, between its calls. The hook is one file that adopters copy, and the obvious way to set the time of a run started as a command is an environment variable that the step reads. A repository's `.claude/settings.json` sets environment variables for every process of everyone who works in it, hooks included, so a repository that set such a variable would move the times that the store notes for its contributors' runs, and with them the intervals, so that calls made while capture was off fall inside one and are recorded: T38's harm. A run's time read in a local zone that the environment sets would do the same.
+- **Answer:** each run's time is read from the system's clock in UTC, which no environment variable sets, and a scenario that sets `TZ` holds it. The golden tests call the step's entry point in the test's own process and give each run its time there.
+- **Residual:** a repository's own hooks can still change a person's git configuration before any run, as the assumptions accept.
+- **Held by:** `switch-and-opt-in`: "The environment cannot move a run's time"; `add-pr-cost-calculator` decision 14; `add-pr-cost-calculator` task 1.21; DR-165
+
+## Boundary 2, continued: found at the design review of the assumptions, the glossary and the golden set
+
+### T85. The golden tests run the capture step on the clone that runs them
+
+- **Kind:** reliability, denial of service
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** the registered command finds the step's file through the project directory, and the step works on the repository that holds it. A harness that runs the command as the README registers it, from the clone that runs the tests, makes that clone the step's repository, and in this repository the tool is on with the owner opted in once task 7.1 is done. A golden session that models an opt-out then ends, in the clone's store, the interval of every session that the store notes, so the calls that the session running the tests recorded are never staged, and its pull request's comment shows a lower cost with nothing saying why. A run can also stage a ledger file in the clone's index between the person's commits (T10), and a version under test that moves the store's format can leave a store that the person's own hook does not know (T44).
+- **Answer:** the golden tests run each session in a temporary repository of its own, with a home folder and a configuration folder inside the test's temporary folder, and a check around the whole test session fails when the clone's store, index or working tree changes.
+- **Residual:** a test that writes into another repository on the machine, as at an absolute path taken from a fixture, is not covered.
+- **Held by:** `project-standards`: "The golden set leaves the clone that runs it alone"; `add-pr-cost-calculator` task 1.21; DR-165
+
+### T86. A fact observed on one build of git is recorded as holding for its version
+
+- **Kind:** reliability, denial of service
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** `git --version` prints the same version for builds that differ. The git 2.43.0 that Ubuntu 24.04 packages carries a security patch that its changelog says disables lazy fetching by default, and T45's answer rests on git reading `GIT_NO_LAZY_FETCH`, while the capture step's floor reads only the version. An assumption recorded as observed with git 2.43.0 then reads as checked for every git that the floor admits. If a build of 2.43 without that patch does not read the variable, then in a partial clone whose sparse checkout leaves `.pr-cost/` out, the step fetches ledger blobs from the remote and can wait out its budget on a credential helper or a slow remote: T45's harm, on a git that the floor, CI and the assumptions all accept.
+- **Answer:** an observation names the file that reproduces what was seen, the date, and the program, the version that it prints and its build, and a test fails on one that does not. The design's context names the build that the observation was made on, and task 1.19 records the fact as `not yet` for a build of 2.43 without that patch.
+- **Residual:** git's own `promisor-remote.c` names the variable from v2.43.4 on and not at v2.43.3, so a plain git from 2.43.0 to 2.43.3 passes the floor while T45's answer does not hold on it, until the floor or the step's check changes (T45).
+- **Held by:** `project-standards`: "An observation that cannot be followed fails CI"; `add-pr-cost-calculator` task 1.19; DR-162
+
+## Boundary 3, continued: found at the design review of the assumptions, the glossary and the golden set
+
+### T87. The golden set holds the report's figures only for ledgers that capture wrote
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** run on transcripts alone, the report only ever reads what capture writes, and capture never writes a refused line, never changes a file once written and never brings back a removed one. A session that does not state the ledger files that the default branch held, what the merge adds, removes or changes, the jobs API's responses and the day the report runs leaves the rules of T17, T19, T20, T47 and T48 held only by scenarios that each name one condition. Code that skips a whole earlier file for one unreadable line passes those scenarios, and then counts that file's calls again when a later pull request adds them, in any of the ways that T19 lists.
+- **Answer:** each golden session states the pull request it is reported for, the report runs without capture on a session that gives no transcripts, and the set holds a session for each rule at this boundary that changes a figure or a count. `report-comment` holds that an earlier file's valid lines keep their calls beside an unreadable one, and task 4.2 skips the line, not the file.
+- **Residual:** a combination that no session holds still rests on the scenarios' own tests. A golden CI figure replays recorded responses, so it holds the report's arithmetic and not GitHub's data, and a figure worked out from a wrong spec reproduces the spec's error.
+- **Held by:** `project-standards`: "A golden pull request can hold ledger lines that no capture step wrote"; `report-comment`: "An earlier ledger file's valid lines keep their calls beside an unreadable one"; `add-pr-cost-calculator` task 1.21; `add-pr-cost-calculator` task 4.2; DR-165
+
+### T88. A test that replays GitHub's answer is taken as the check of how GitHub behaves
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** T19's and T22's answers rest on how GitHub finds the pull request of a commit and orders a run's creation against a merge, of which this model says that its own merges cannot check it. No test may use the network (DR-090), so a test of such a fact replays a recording whose premise is the fact itself. Moving the assumptions, task 1.19 could mark the fact as tested by naming such a test: the check passes, the statement that nothing checks the fact is gone, and if GitHub behaves otherwise, the replay still passes while the figures are wrong.
+- **Answer:** GitHub has a page of its own among the assumptions, and a fact whose subject no test may reach, such as Claude Code or GitHub, is never checked by a test alone: it is observed, documented or not yet, and may name beside that the test that holds the tool's handling of it.
+- **Residual:** an observation goes stale when GitHub changes after it was made, and whether a linked page says what the fact claims rests on the reviews.
+- **Held by:** `project-standards`: "A fact that no test can reach, checked by a test alone, fails CI"; `add-pr-cost-calculator` task 1.19; DR-162
+
+## Boundary 5, continued: found at the design review of the assumptions, the glossary and the golden set
+
+### T89. The comment shows its figures by a rule that no spec states
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** nothing says what unit the comment's figures are in, how precise they are, how they are rounded or what arithmetic gives them. Built before that code, the golden set would either hold the costs before they are shown, so that nothing holds what readers see, or choose a rounding that no spec states, so that a test file decides what the comment says. With Python's own formatting to two places, three costs of 0.004 each show as 0.00 beside a total of 0.01, 2.675 shows as 2.67 where decimal arithmetic rounding half up gives 2.68, and 0.00001 prints as 1e-05. A cost that is not zero reads as free, and a reader who recomputes a figure from the ledger gets another number, with nothing saying which is right.
+- **Answer:** the golden set holds each figure as the comment shows it, and its tests compare the comment that the report writes. Task 1.21 waits until `report-comment` states how a cost is shown, a rule whose choices are the owner's and an open question of the design.
+- **Residual:** until that rule is in a spec, this answer holds nothing. A test of the comment's text cannot see how GitHub renders it, and whether the rule suits readers is the owner's call.
+- **Held by:** `project-standards`: "A result that differs from the golden set fails CI"; `add-pr-cost-calculator` task 1.21; DR-165
+
+## Boundary 6, continued: found at the design review of the assumptions, the glossary and the golden set
+
+### T90. A rewording changes a name or an instruction that adopters copy
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** the specs use both "turn on" and "enabled" for the repository's switch, the kind of doubled wording that the glossary removes, and `enabled` is also the configuration key, part of the public surface. A wording test that matched inside code would fail on every page that gives the key, and the rule that every use of a newly listed word is reworded in the same pull request would push the key to change. Changed in the documents alone, the key no longer matches the code, so an adopter who writes it gets a file that is not valid, which leaves the tool off and records nothing, and looks the same as a repository that turned it off. Changed in the code, the public surface changes.
+- **Answer:** the wording test never reads inline code or fenced code blocks, which give names, commands, paths and snippets as they must be typed; a word is listed to avoid only if it is wrong wherever it appears in prose; and the review reads the pages that adopters act on before and after a rewording.
+- **Residual:** a rewording that keeps every name but changes what an instruction asks, such as which commit to pin or what a public repository publishes, rests on the review alone. Product labels quoted in prose are still read as prose.
+- **Held by:** `project-standards`: "A word to avoid in code is left as written"; `add-pr-cost-calculator` decision 14; `add-pr-cost-calculator` task 1.20; DR-164
+
+### T91. A newer report gives other figures for a ledger that an older hook wrote
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** adopters update the workflow's pin more readily than the copied hook, so a report of one release commonly reads entries that an earlier release's hook wrote (T54). The ledger records price attributes, and newer versions of Claude Code have added fields that change a price, so the format will change, and a newer report has to decide what an older entry's missing field means. A golden set that runs one version's capture step and report on each session fixes no figure for an older format, and a check that the report counts each released format's entries passes a report that prices them another way. Adopters with an older hook then get other figures, and a spec that changes a golden figure reaches them in a minor release with nothing in the changelog saying that the same ledger now gives other figures.
+- **Answer:** for each ledger format that a release wrote, the golden set keeps sessions whose entries are as that release wrote them, with their hand-worked figures, for as long as the report reads that format, and a pull request that changes a golden session that the latest release's tag holds names it in the changelog's unreleased entry.
+- **Residual:** combinations in an older format that no golden session covers.
+- **Held by:** `project-standards`: "An earlier release's entries give their hand-worked figures"; `project-standards`: "A format that the report reads keeps a golden session"; `project-standards`: "A released golden figure changed without a changelog line fails CI"; `add-pr-cost-calculator` task 6.4; DR-165
+
+## Boundary 7, continued: found at the design review of the assumptions, the glossary and the golden set
+
+### T92. The assumptions behind the threats that matter most are listed after ones that matter less
+
+- **Kind:** elevation of privilege, reliability
+- **Impact:** 3 (high)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 3
+- **What could happen:** this model rates a threat's likelihood with its answer in place (DR-112), and an assumption is part of an answer, so the better an assumption keeps a threat down, the lower that threat's risk. Listed by the highest risk among their threats, the assumptions that GitHub enforces a workflow's permissions and gives a reusable workflow its caller's event, and that Claude Code keeps the hook registrations it read at a session's start, behind T23, T24, T29, T59, T67 and T68 at risk 3, would come after any assumption behind a threat of impact 2 and risk 4 or 6, such as T7, T8, T19 or T51, whose failure makes a figure wrong. If such an assumption becomes false unnoticed, as after a change in Claude Code or GitHub, the owner reading the list from the top reaches it late, and the answer it holds up fails with it: a token that can write comments in the hands of code that is not the tool's, or a pull request's code run with a maintainer's credentials.
+- **Answer:** each line of the assumptions' index gives the highest impact among the threats that rest on the assumption beside their highest risk, both read from this model, and the index says above its list that a risk is rated with the assumption true, so a reader sees an assumption behind a threat of high impact wherever it stands.
+- **Residual:** the list is still read from the top, and an assumption behind a threat of impact 3 and risk 3 stands after those behind a threat of risk 4 or 6. The order only directs attention: nothing looks at an observation again when Claude Code or GitHub changes.
+- **Held by:** `project-standards`: "An assumption out of order fails CI"; `project-standards`: "An index line without the impact fails CI"; `add-pr-cost-calculator` decision 14; `add-pr-cost-calculator` task 1.19; DR-163
+
+### T93. A glossary entry changes what a rule or a requirement means, with no diff to either
+
+- **Kind:** elevation of privilege, tampering
+- **Impact:** 3 (high)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 3
+- **What could happen:** the glossary gives the meaning of words that `CLAUDE.md`'s rules and the specs rest on, and agents read it so as to read fewer words. A one-sentence meaning that narrows a word, such as "synthetic" defined as made for the tests with every identifier replaced, or "someone outside the project" as whoever opens a pull request from a fork, changes what a rule lets an agent do, while the diff is one row of a table and `CLAUDE.md` does not change. An agent that acts on the narrower meaning can run a branch's hooks with the session's credentials or publish private data, and a looser meaning of a term in a scenario changes what the code is built to.
+- **Answer:** the glossary describes the words that the specs and pages use and never changes what they say; where a meaning in it differs from a requirement, a scenario or `CLAUDE.md`, those hold and the glossary is corrected, and `CLAUDE.md` names the glossary among the files that describe and never instruct.
+- **Residual:** a meaning that narrows a rule without contradicting its words rests on the owner's review of the glossary's diff.
+- **Held by:** `CLAUDE.md`; `add-pr-cost-calculator` decision 14; DR-166
+
+### T94. A rewording changes what a rule, a requirement or a threat's answer says
+
+- **Kind:** tampering, elevation of privilege, information disclosure
+- **Impact:** 3 (high)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 3
+- **What could happen:** task 1.20 rewords every tracked Markdown page that the wording test reads, `CLAUDE.md`, the specs, the README and this model among them, and each later pull request that lists a word to avoid rewords every use of it. A replacement, or a fix to a word with several senses, can change what a sentence says while its title stays. "Usage record" replaced with "ledger entry" in `CLAUDE.md`'s privacy rule would no longer bar real usage data in any other form; a scoping rule or the README's warning, reworded, can let another repository's calls cross; and "refused", "skipped" and "left out" keep apart the reasons that the comment counts, so merging two of them counts a line under the wrong one. A contributor who wants a rule changed can hide the change among many mechanical lines.
+- **Answer:** a script, run once in each pull request that rewords, shows that each changed line differs only by words to avoid replaced with their terms, and lists every other change, those to `CLAUDE.md` first. The review in a separate context reads, before and after, the requirements, `CLAUDE.md`, this model's answers and residuals, the README's statements of what opting in records and publishes, and the pages that adopters act on. Each concept that a rule tells apart has a term of its own, so listing one as a word to avoid for another fails the check of the glossary.
+- **Residual:** a change of meaning that the script lists and the review misses. A word with several senses in a line that the rewording leaves alone is held only by the reviews, and no test yet reads the README's statement of what opting in publishes.
+- **Held by:** `project-standards`: "A term defined twice fails CI"; `add-pr-cost-calculator` decision 14; `add-pr-cost-calculator` task 1.20; DR-164
+
+### T95. A page that an assumption links to steers the agent that checks it
+
+- **Kind:** elevation of privilege
+- **Impact:** 3 (high)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 3
+- **What could happen:** a fact checked by documentation links a page, and a reader is meant to follow each check to its source. A pull request can add a documented fact whose link text names a vendor while its target is a page that its author controls, since Markdown shows the text and not the target, and a page that the owner read before merging can change afterwards. Each later agent that checks the fact fetches the page into its context, where text written as instructions can steer it, with the session's credentials, as the owner's account (T64); among them are the reviewers of an outside contributor's pull request.
+- **Answer:** a documented fact links, by its address shown as its text, only a vendor's page on a host that the test lists or a GitHub file at a full commit, and `CLAUDE.md` says that a page that a file here links to is data.
+- **Residual:** a vendor's own page, and a listed host that comes to serve other people's content. The list changes only in a pull request that the owner reviews (T71).
+- **Held by:** `project-standards`: "A documented fact that links elsewhere fails CI"; `CLAUDE.md`; `add-pr-cost-calculator` task 1.19; DR-162; DR-166
+
+### T96. An assumption and a threat that rests on it do not name each other
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** an assumption's place in the list comes from the threats that its entry names, and two of the ten assumptions in this model's section name a threat. The assumption on Claude Code's hooks names none, though T8's answer rests on its facts about when `Stop` and `SessionEnd` run; an entry that named only T14 would sort it low, and a change that later finds the hooks behaving otherwise revisits only what the entry names, so T8 keeps an answer that rests on a false fact. Neither T23 nor T24 names the assumption about GitHub that their answers rest on, so a correction of it need not meet them.
+- **Answer:** a threat that rests on an assumption names it in a field of its own, the assumption names the threat, and a test fails when either names the other alone. Task 1.19 replaces each "(see Assumptions)" with the assumption's ID, and a script shows that each sentence of the section it moves is in an assumption or a spec afterwards.
+- **Residual:** a threat that rests on an assumption and names none. Only the reviews find it, as they do for records under T80.
+- **Held by:** `project-standards`: "An assumption and a threat that do not name each other fail CI"; `add-pr-cost-calculator` task 1.19; DR-162
+
+### T97. An assumption claims an observation that nobody can follow
+
+- **Kind:** spoofing, reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** this model's one observed assumption says only that it was "observed when this model was written". Restating it as observed, with what was seen and when, an agent has a sentence and a commit date, so it writes a description that nobody can follow, or makes one up; a new fact can likewise be marked observed from what an agent believes Claude Code does. A fact then reads as checked, and the threats that rest on it read as sounder than they are.
+- **Answer:** an observation names a file under `tests/` that reproduces what was seen, the date, and the program, version and build it was seen on, and a test fails on one that names no such file. Until a file exists, the fact is `not yet`.
+- **Residual:** a file can be made up too, but it is then a file that the review reads and a test runs, not a sentence. Some observations, such as GitHub's timing, may never fit a file and stay `not yet`.
+- **Held by:** `project-standards`: "An observation that cannot be followed fails CI"; `add-pr-cost-calculator` task 1.19; DR-162
+
+### T98. A pull request rewrites a golden figure and its working together with the code
+
+- **Kind:** tampering, reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** an agent building the capture step or the report sees a golden test fail, judges the hand-worked figure wrong, and, since `CLAUDE.md` lets it fix a wrong test first, changes the figure and its working together, beside the code that now reproduces them. The test that a figure follows from its working passes, so the change shows only as a figure changed beside code, a path that a contributor who wants a figure to come out otherwise can use too (T71).
+- **Answer:** a pull request that changes a golden session that its base holds either changes a spec or changes nothing outside the golden set, and a test fails otherwise, so a slip in the set is fixed on its own and a rule change comes with its spec.
+- **Residual:** a pull request that changes a spec, the code and the set together rests on the review in a separate context; the comparison with the base has T70's limits; and a fix to the code that reveals a slip in the set takes two pull requests.
+- **Held by:** `project-standards`: "A golden session changed beside other files without its spec fails CI"; `project-standards`: "A golden session changed alone or with a spec passes"; `add-pr-cost-calculator` task 1.21; DR-165
+
+## Boundary 8, continued: found at the design review of the assumptions, the glossary and the golden set
+
+### T99. A release is published whose version does not reproduce the golden set
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** acceptance tests are kept as expected failures that may not pass early, with their expected error (DR-084), and that strict mode stops only a test that passes. A golden test whose code gives a wrong figure keeps failing, and if it fails with the error that its marker names, as when that error is the comparison's own assertion, pytest counts an expected failure and the run succeeds. No task removed the markers or checked that the set passes, so the release's test job passes and adopters pin a version that does not give the figures that the specs give.
+- **Answer:** the release's test job runs every expected failure as an ordinary test, which the tests that parse the workflow check, so no version is released while any acceptance test fails, and each golden test names as its expected error one that only a missing capture step or report raises, so a wrong figure fails CI on the pull request, before any tag.
+- **Residual:** a release still ships whatever the golden set and the acceptance tests leave out, and a slip in the hand-working that its own working repeats.
+- **Held by:** `project-standards`: "A version that does not reproduce the golden set is not released"; `add-pr-cost-calculator` task 1.21; `add-pr-cost-calculator` task 6.3; DR-167
+
+### T100. The settings that control releases are left out of the assumptions, or listed as checked when nothing checks them
+
+- **Kind:** reliability
+- **Impact:** 2 (medium)
+- **Likelihood:** 1 (unlikely)
+- **Risk:** 2
+- **What could happen:** the tag ruleset and immutable releases are T67's control, read-only default permissions back up T68, and no file holds these settings and no test reads them. Moving only the section on assumptions would leave them out of the list meant to show what the design rests on, and writing them as observed on the day of the task would show them as checked long after. A setting can change with no commit, as when the tag ruleset gains a bypass, so no check runs, and the owner or an agent that reads the list before a release takes the control as still in place.
+- **Answer:** each setting that the owner keeps is listed in the assumptions as a fact that points to this model's section on those settings, checked as `not yet`, since no test may read a setting on GitHub, so the list never shows it as checked.
+- **Residual:** nothing on the release's path looks at the settings; a release gate on how recently they were observed, or a read of them at the release, is left to the owner and is not designed here.
+- **Held by:** `add-pr-cost-calculator` decision 14; `add-pr-cost-calculator` task 1.19; DR-162
+
 ## Risk matrix
 
 Generated from the ratings above. Each cell lists the threats whose impact and likelihood it names.
 
 | Impact \ Likelihood | 1 unlikely | 2 possible | 3 likely |
 |---|---|---|---|
-| 3 high | T1, T12, T14, T15, T23, T24, T28, T29, T35, T43, T46, T58, T59, T63, T64, T66, T67, T68, T73, T77 | T2, T32, T33, T34, T61, T62, T65 |  |
-| 2 medium | T4, T6, T11, T18, T25, T26, T41, T42, T53, T55, T56, T57, T60, T69, T70, T76, T78, T79, T80, T81 | T3, T9, T10, T17, T19, T20, T21, T22, T30, T38, T39, T40, T44, T45, T47, T48, T49, T50, T51, T52, T54, T71, T72, T74, T75 | T7, T8, T16 |
+| 3 high | T1, T12, T14, T15, T23, T24, T28, T29, T35, T43, T46, T58, T59, T63, T64, T66, T67, T68, T73, T77, T82, T83, T92, T93, T94, T95 | T2, T32, T33, T34, T61, T62, T65 |  |
+| 2 medium | T4, T6, T11, T18, T25, T26, T41, T42, T53, T55, T56, T57, T60, T69, T70, T76, T78, T79, T80, T81, T84, T85, T86, T87, T88, T89, T90, T91, T96, T97, T98, T99, T100 | T3, T9, T10, T17, T19, T20, T21, T22, T30, T38, T39, T40, T44, T45, T47, T48, T49, T50, T51, T52, T54, T71, T72, T74, T75 | T7, T8, T16 |
 | 1 low | T13 | T27, T31, T36, T37 | T5 |
 
 The threats with a risk of 6 or more:
