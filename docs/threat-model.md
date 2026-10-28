@@ -535,7 +535,7 @@ The trust boundaries:
 - **Risk:** 4
 - **What could happen:** in a partial clone whose sparse checkout leaves `.pr-cost/` out, a ledger blob is not local, and git fetches it from the remote when the step reads it. The hook would go to the network, which it must not, and could wait on a credential helper or a slow remote until its budget is spent. A network guard inside the Python process does not see a connection that a git subprocess makes.
 - **Answer:** every git command the step runs has `GIT_NO_LAZY_FETCH=1` and `GIT_TERMINAL_PROMPT=0`, and a blob that the clone lacks is skipped, as an oversized one is.
-- **Residual:** git's own source names `GIT_NO_LAZY_FETCH` in no C file at v2.43.0 to v2.43.3 or at v2.44.0, and does at v2.43.4, v2.44.1 and v2.45.0, so on a plain git 2.43.0 to 2.43.3 or 2.44.0, which the floor admits, the variable does nothing and this answer does not hold until the floor or the step's check changes (T86).
+- **Residual:** git's own source names `GIT_NO_LAZY_FETCH` in no file at v2.43.0 to v2.43.3 or at v2.44.0, and reads it at v2.43.4, v2.44.1 and v2.45.0, so on a plain git 2.43.0 to 2.43.3 or 2.44.0, which the floor admits, the variable does nothing and this answer does not hold until the floor or the step's check changes (T86).
 - **Held by:** `usage-capture`: "Capture fetches no ledger file that its clone lacks"; `usage-capture`: "Capture skips a ledger file whose blob its clone lacks"; `project-standards`: "The hook opens no connection"; DR-060; `add-pr-cost-calculator` task 2.1
 
 ### T46. On Windows, a program planted in the current directory runs as git
